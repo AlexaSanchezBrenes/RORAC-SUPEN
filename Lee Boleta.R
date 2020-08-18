@@ -4,8 +4,19 @@ lee.boleta<<-function(archivo){
   library(stringr)
   library(dplyr)
   
+if(substring(archivo, 1, 6) =="Boleta"){ 
   tbl<-as.data.frame(unclass(read.table(archivo, 
-                                        header = TRUE, sep = ","))) %>% 
+                                                header = TRUE, sep = ",", 
+                                                fileEncoding = "UTF-8")))
+ }else{
+   tbl<- as.data.frame(unclass(read.table(archivo, 
+                                        header = TRUE, sep = ",")))
+ }
+  
+  
+  
+               
+  df<-tbl%>% 
     rename(Numero.de.Contracto = "Número.de.Contrato",
            Numero.de.Contracto.Largo = "Número.de.Contrato.Largo",
            Mercado.de.Negociacion = "Mercado.de.Negociación",
@@ -35,5 +46,5 @@ lee.boleta<<-function(archivo){
            Operacion.Cruzada = as.character(unlist( Operacion.Cruzada)),
            Recompra = as.character(unlist( Recompra))) 
   
-  return(as.data.frame(tbl))
+  return(as.data.frame(df))
 }
