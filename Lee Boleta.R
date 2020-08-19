@@ -29,7 +29,6 @@ if(substring(archivo, 1, 6) =="Boleta"){
            Tis = as.numeric(str_replace(Tis, ",", ".")),
            Tir = as.numeric(str_replace(Tir, ",", ".")),
            Fecha.de.Operacion = as.Date(as.character.Date(Fecha.de.Operacion)),
-           Fecha.de.Vencimiento = as.Date(as.character.Date(Fecha.de.Vencimiento)),
            Plazo.de.la.operacion = as.character(Plazo.de.la.operacion),
            Rendimiento.de.la.recompra = as.numeric(str_replace
                                         (Rendimiento.de.la.recompra , ",", ".")))
