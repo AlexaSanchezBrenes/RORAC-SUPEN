@@ -1,7 +1,7 @@
 #Recibe un txt o csv con la informacion de la emision para un periodo dado.
 lee.boleta<<-function(archivo){
   library(readr)
-  library(stringr)
+  library(stringi)
   library(dplyr)
   library("tools")
   options(stringsAsFactors = FALSE)
