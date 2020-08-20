@@ -3,8 +3,9 @@ lee.boleta<<-function(archivo){
   library(readr)
   library(stringr)
   library(dplyr)
+  library("tools")
   options(stringsAsFactors = FALSE)
-if(substring(archivo, 1, 6) =="Boleta"){ 
+if(file_ext(archivo) =="csv"){ 
   tbl<-as.data.frame(unclass(read.table(archivo, 
                                         header = TRUE, 
                                         sep = ",", 
@@ -20,7 +21,7 @@ if(substring(archivo, 1, 6) =="Boleta"){
                                           sep = ",", 
                                           encoding = "Latin1",
                                           stringsAsFactors = F)))
-   colnames(tbl)<-names
+   names<-colnames(tbl)
    names<-stringi::stri_trans_general(colnames(tbl), "Latin-ASCII")
 
  }
