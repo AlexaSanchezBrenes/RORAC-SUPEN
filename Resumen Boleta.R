@@ -1,8 +1,9 @@
-#Recibe un archivo txt o csv con la boleta de un periodo dado
-
+#Input: Boleta
+#Output: Lista con la información de la boleta como dataframe
+        # Cuadros resumen con la información de emisor
 resumen.boleta<-function(archivo){
-  
-tbl<-lee.boleta(archivo) %>% 
+Boleta<-lee.boleta(archivo)
+tbl<-Boleta %>% 
        filter(Plazo.de.la.operacion != "A PLAZO")
   
 fecha.operacion<-tbl$Fecha.de.Operacion[1]
@@ -28,10 +29,11 @@ periodicidad<- tbl %>%
                group_by(Periodicidad) %>% 
                 summarise(Conteo = n())
 
-return(list(Fecha.Operacion.Boleta =  fecha.operacion,
-              ResumenEmisor = resumen.emisor,
+return(Informacion = list(Fecha.Operacion.Boleta =  fecha.operacion,
+            Boleta = Boleta,
+              Resumen.Emisor = resumen.emisor,
               Moneda.Emision = moneda.emision,
               Moneda.Liquidacion = moneda.liquidacion, 
               Periodicidad = periodicidad))
 }
-pb<-resumen.boleta(archivo)
+
