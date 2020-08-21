@@ -4,6 +4,7 @@ lee.boleta<<-function(archivo){
   library(stringi)
   library(dplyr)
   library("tools")
+  library(stringr)
   options(stringsAsFactors = FALSE)
 if(file_ext(archivo) =="csv"){ 
   tbl<-as.data.frame(unclass(read.table(archivo, 
