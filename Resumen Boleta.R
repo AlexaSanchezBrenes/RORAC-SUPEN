@@ -2,6 +2,7 @@
 #Output: Lista con la información de la boleta como dataframe
         # Cuadros resumen con la información de emisor
 resumen.boleta<-function(archivo){
+
 Boleta<-lee.boleta(archivo)
 tbl<-Boleta %>% 
        filter(Plazo.de.la.operacion != "A PLAZO")
