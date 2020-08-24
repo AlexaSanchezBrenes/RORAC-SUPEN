@@ -1,6 +1,6 @@
 #              
 #                    Consultoría RORAC-SUPEN 
-#                        Mapeo de Datos 
+#                    Mapeo de Datos Actuales 
 
 # Autores:
 # Alexa Sánchez
@@ -9,7 +9,7 @@
 
 # El siguiente módulo realiza un mapeo estadístico sobre los datos 
 # obtenidos por la Bolsa Nacional de Valores sobre las transacciones 
-# de títulos.
+# de títulos en fechas recientes.
 
 # Paquete necesarios:
 library(readr)
@@ -164,7 +164,7 @@ dia.ve.titulos <- Boletas %>% filter(titulo == "BONOS") %>% group_by(Fecha.de.Ve
 # Bonos promedio diario:
 dia.ve.prom <- dia.ve.titulos %>% summarise(promedio = mean(cantidad), .groups = "keep")
 
-# Cantidad de bonos por emisores e instrumento al día:
+# Cantidad de bonos por emisores e instrumentos al día:
 dia.ve.nemo <- Boletas %>% filter(titulo == "BONOS") %>% 
   group_by(Fecha.de.Vencimiento,Nemotecnico.del.Emisor,Nemotecnico.del.instrumento) %>% 
   summarise(cantidad = n(), .groups = "keep") %>% 
@@ -243,7 +243,7 @@ sem.ve.titulos <- Boletas %>% filter(titulo == "BONOS") %>% group_by(semana = cu
 # Bonos promedio semanal:
 sem.ve.prom <- sem.ve.titulos %>% summarise(promedio = mean(cantidad), .groups = "keep")
 
-# Cantidad de bonos por emisores e instrumento a al semana:
+# Cantidad de bonos por emisores e instrumentos a al semana:
 sem.ve.nemo <- Boletas %>% filter(titulo == "BONOS") %>% 
   group_by(semana = cut(Fecha.de.Vencimiento, "week"),Nemotecnico.del.Emisor,Nemotecnico.del.instrumento) %>% 
   summarise(cantidad = n(), .groups = "keep") %>% 
@@ -322,7 +322,7 @@ mes.ve.titulos <- Boletas %>% filter(titulo == "BONOS") %>% group_by(mes = cut(F
 # Bonos promedio mensual:
 mes.ve.prom <- mes.ve.titulos %>% summarise(promedio = mean(cantidad), .groups = "keep")
 
-# Cantidad de bonos por emisores e instrumento al mes:
+# Cantidad de bonos por emisores e instrumentos al mes:
 mes.ve.nemo <- Boletas %>% filter(titulo == "BONOS") %>% 
   group_by(mes = cut(Fecha.de.Vencimiento, "month"),Nemotecnico.del.Emisor,Nemotecnico.del.instrumento) %>% 
   summarise(cantidad = n(), .groups = "keep") %>% 
