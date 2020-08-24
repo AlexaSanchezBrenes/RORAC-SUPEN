@@ -9,7 +9,7 @@
 
 # El siguiente módulo realiza un mapeo estadístico sobre los datos 
 # obtenidos por la Bolsa Nacional de Valores sobre las transacciones 
-# de títulos en fechas recientes.
+# de títulos en fechas recientes para analizarlo la información.
 
 # Paquete necesarios:
 library(readr)
