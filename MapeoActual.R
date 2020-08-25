@@ -106,7 +106,7 @@ Boletas <- Boletas %>% select(-cod.Boleta) %>% unique()
 # Eliminamos variables que momentaneamente no son necesarias:
 Boletas <- Boletas %>% select(-Dias.de.vencimiento.del.Instrumento,-Tis,-Fecha.Ultimo.Pago.Intereses,
                               -Fecha.Vencimiento.Plazo,-Plazo.de.la.operacion,-Garantia.de.la.recompra,
-                              -Indicador.de.subasta,-Moneda.de.liquidacion,-Dias.Acumulados.Intereses,
+                              -Indicador.de.subasta,-Dias.Acumulados.Intereses,
                               -Tir,-Fecha.de.Renovacion,-Dias.de.recompra,-Rendimiento.de.la.recompra,
                               -Operacion.Cruzada, -Numero.de.Contrato) %>% 
   mutate(Fecha.de.Operacion = as.POSIXct(Fecha.de.Operacion, format = "%Y/%m/%d %H:%M:%S"),
@@ -114,18 +114,32 @@ Boletas <- Boletas %>% select(-Dias.de.vencimiento.del.Instrumento,-Tis,-Fecha.U
   filter(Mercado.de.Negociacion == "MERCADO SECUNDARIO") %>%
   mutate(titulo = ifelse(is.na(Fecha.de.Vencimiento), "ACCIONES O FONDOS", "BONOS"))
 
+# Cantidad de recompras:
+recompras <- Boletas %>% group_by(Recompra) %>% summarise(cantidad = n(), .groups = "keep")
+Boletas <- Boletas %>% filter(Recompra == "NO")
+
 #-------------------#
 # Analisis por día: #
 #-------------------#
 
 # Por Fecha de Operación:
 
+# cantidad de titulos por moneda:
+dia.op.mon <- Boletas %>% 
+  group_by(Fecha.de.Operacion,titulo, Moneda.de.liquidacion, Moneda.del.instrumento) %>% 
+  summarise(cantidad = n(), .groups = "keep") %>% ungroup()
+
+# Promedio diario de titulos por moneda:
+dia.op.mon.prom <- dia.op.mon %>% group_by(Moneda.de.liquidacion, Moneda.del.instrumento) %>% 
+  summarise(promedio = mean(cantidad), .groups = "keep")
+
 # Cantidad de titulos por día:
 dia.op.titulos <- Boletas %>% group_by(Fecha.de.Operacion, titulo) %>% 
   summarise(cantidad = n(), .groups = "keep") %>% ungroup()
 
 # Titulos promedio diario:
-dia.op.prom <- dia.op.titulos %>% group_by(titulo) %>% summarise(promedio = mean(cantidad), .groups = "keep") %>% ungroup()
+dia.op.prom <- dia.op.titulos %>% group_by(titulo) %>% 
+  summarise(promedio = mean(cantidad), .groups = "keep") %>% ungroup()
 
 # Cantidad de títulos por emisores e instrumento al día:
 dia.op.nemo <- Boletas %>% 
@@ -156,6 +170,15 @@ dia.op.ins.prom <- dia.op.ins %>% group_by(titulo,Nemotecnico.del.instrumento) %
   ungroup()
 
 # Por Fecha de Vencimiento:
+
+# cantidad de titulos por moneda:
+dia.ve.mon <- Boletas %>% filter(titulo == "BONOS") %>% 
+  group_by(Fecha.de.Vencimiento,titulo, Moneda.de.liquidacion, Moneda.del.instrumento) %>% 
+  summarise(cantidad = n(), .groups = "keep") %>% ungroup()
+
+# Promedio diario de titulos por moneda:
+dia.ve.mon.prom <- dia.ve.mon %>% group_by(Moneda.de.liquidacion, Moneda.del.instrumento) %>% 
+  summarise(promedio = mean(cantidad), .groups = "keep")
 
 # Cantidad de bonos por día:
 dia.ve.titulos <- Boletas %>% filter(titulo == "BONOS") %>% group_by(Fecha.de.Vencimiento) %>% 
@@ -198,6 +221,15 @@ dia.ve.ins.prom <- dia.ve.ins %>% group_by(Nemotecnico.del.instrumento) %>%
 
 # Por Fecha de Operación:
 
+# cantidad de titulos por moneda:
+sem.op.mon <- Boletas  %>% 
+  group_by(semana = cut(Fecha.de.Operacion, "week"),titulo, Moneda.de.liquidacion, Moneda.del.instrumento) %>% 
+  summarise(cantidad = n(), .groups = "keep") %>% ungroup()
+
+# Promedio semanal de titulos por moneda:
+sem.op.mon.prom <- mes.op.mon %>% group_by(titulo,Moneda.de.liquidacion, Moneda.del.instrumento) %>% 
+  summarise(promedio = mean(cantidad), .groups = "keep")
+
 # Cantidad de titulos por semana:
 sem.op.titulos <- Boletas %>% group_by(semana = cut(Fecha.de.Operacion, "week"), titulo) %>% 
   summarise(cantidad = n(), .groups = "keep") %>% ungroup()
@@ -235,6 +267,15 @@ sem.op.ins.prom <- sem.op.ins %>% group_by(titulo,Nemotecnico.del.instrumento) %
   ungroup()
 
 # Por Fecha de Vencimiento:
+
+# cantidad de titulos por moneda:
+sem.ve.mon <- Boletas %>% filter(titulo == "BONOS") %>% 
+  group_by(semana = cut(Fecha.de.Vencimiento, "week"),titulo, Moneda.de.liquidacion, Moneda.del.instrumento) %>% 
+  summarise(cantidad = n(), .groups = "keep") %>% ungroup()
+
+# Promedio semanal de titulos por moneda:
+sem.ve.mon.prom <- sem.ve.mon %>% group_by(Moneda.de.liquidacion, Moneda.del.instrumento) %>% 
+  summarise(promedio = mean(cantidad), .groups = "keep")
 
 # Cantidad de bonos por semana:
 sem.ve.titulos <- Boletas %>% filter(titulo == "BONOS") %>% group_by(semana = cut(Fecha.de.Vencimiento, "week")) %>% 
@@ -277,6 +318,15 @@ sem.ve.ins.prom <- sem.ve.ins %>% group_by(Nemotecnico.del.instrumento) %>%
 
 # Por Fecha de Operación:
 
+# cantidad de titulos por moneda:
+mes.op.mon <- Boletas  %>% 
+  group_by(mes = cut(Fecha.de.Operacion, "month"),titulo, Moneda.de.liquidacion, Moneda.del.instrumento) %>% 
+  summarise(cantidad = n(), .groups = "keep") %>% ungroup()
+
+# Promedio mensual de titulos por moneda:
+mes.op.mon.prom <- mes.op.mon %>% group_by(titulo,Moneda.de.liquidacion, Moneda.del.instrumento) %>% 
+  summarise(promedio = mean(cantidad), .groups = "keep")
+
 # Cantidad de titulos por mes:
 mes.op.titulos <- Boletas %>% group_by(mes = cut(Fecha.de.Operacion, "month"), titulo) %>% 
   summarise(cantidad = n(), .groups = "keep") %>% ungroup()
@@ -314,6 +364,15 @@ mes.op.ins.prom <- mes.op.ins %>% group_by(titulo,Nemotecnico.del.instrumento) %
   ungroup()
 
 # Por Fecha de Vencimiento:
+
+# cantidad de titulos por moneda:
+mes.ve.mon <- Boletas %>% filter(titulo == "BONOS") %>% 
+  group_by(mes = cut(Fecha.de.Vencimiento, "month"),titulo, Moneda.de.liquidacion, Moneda.del.instrumento) %>% 
+  summarise(cantidad = n(), .groups = "keep") %>% ungroup()
+
+# Promedio semanal de titulos por moneda:
+mes.ve.mon.prom <- mes.ve.mon %>% group_by(Moneda.de.liquidacion, Moneda.del.instrumento) %>% 
+  summarise(promedio = mean(cantidad), .groups = "keep")
 
 # Cantidad de bonos por mes:
 mes.ve.titulos <- Boletas %>% filter(titulo == "BONOS") %>% group_by(mes = cut(Fecha.de.Vencimiento, "month")) %>% 
