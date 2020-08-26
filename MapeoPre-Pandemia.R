@@ -220,7 +220,20 @@ mes.op.emi.prom <- mes.op.emi %>% group_by(titulo,`Nemotécnico del Emisor`) %>%
 # Promedio mensual de títulos por instrumento:
 mes.op.ins.prom <- mes.op.ins %>% group_by(titulo,`Nemotécnico del instrumento`) %>% 
   summarise(promedio = mean(cantidad), .groups = "keep") %>% 
-  ungroup()
+  ungroup
+
+# Segregamos por los nemotécnicos que necesitamos:
+mes.op.ins.seg <- mes.op.nemo %>% filter(as.Date("2014-12-01")<as.Date(mes)) %>%
+  mutate(ano = year(as.Date(mes)), mes = month(as.Date(mes))) %>% 
+  filter(`Nemotécnico del Emisor` %in% c("BCCR","G"), 
+         !`Nemotécnico del instrumento` %in% c("bemv", "tp$", "tpras", "tptba", "TUDES", "tudes", "bemud", "TPTBA")) %>% 
+  group_by(ano, mes) %>% summarise(cantidad = sum(cantidad), .groups = "keep") %>% ungroup() 
+
+# Mediana y Promedio mensual:
+media.op.mes <- mean(mes.op.ins.seg$cantidad) 
+media.op.mes
+mediana.op.mes <- median(mes.op.ins.seg$cantidad)
+mediana.op.mes
 
 # Por Fecha de Vencimiento:
 
@@ -259,3 +272,15 @@ mes.ve.ins.prom <- mes.ve.ins %>% group_by(`Nemotécnico del instrumento`) %>%
   summarise(promedio = mean(cantidad), .groups = "keep") %>% 
   ungroup()
 
+# Segregamos por los nemotécnicos que necesitamos:
+mes.ve.ins.seg <- mes.ve.nemo %>% filter(as.Date("2014-12-01")<as.Date(mes)) %>%
+  mutate(ano = year(as.Date(mes)), mes = month(as.Date(mes))) %>% 
+  filter(`Nemotécnico del Emisor` %in% c("BCCR","G"), 
+         !`Nemotécnico del instrumento` %in% c("bemv", "tp$", "tpras", "tptba", "TUDES", "tudes", "bemud", "TPTBA")) %>% 
+  group_by(ano, mes) %>% summarise(cantidad = sum(cantidad), .groups = "keep") %>% ungroup() 
+
+# Mediana y Promedio mensual:
+media.ve.mes <- mean(mes.ve.ins.seg$cantidad) 
+media.ve.mes
+mediana.ve.mes <- median(mes.ve.ins.seg$cantidad)
+mediana.ve.mes
