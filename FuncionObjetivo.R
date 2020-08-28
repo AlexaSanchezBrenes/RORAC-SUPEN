@@ -48,7 +48,7 @@ ValorarBonos <- function(FechaUltimoPagoIntereses,FechaOperacion,FechaVencimient
 }
 
 
-# El Data Frame de BoletasMes debe contener las siguientes variables:
+# El Data Frame de BoletasMes debe contener las siguientes variables (para una única fecha de operación y una moneda de liquidación):
 # Valor transado
 # Tasa facial
 # Valor facial 
