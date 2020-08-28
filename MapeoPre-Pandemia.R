@@ -284,3 +284,9 @@ media.ve.mes <- mean(mes.ve.ins.seg$cantidad)
 media.ve.mes
 mediana.ve.mes <- median(mes.ve.ins.seg$cantidad)
 mediana.ve.mes
+
+# Segregamos por los nemotécnicos que necesitamos:
+op.seg.pre <- Datos.Curva %>% mutate(mes.op = month(as.Date(`Fecha de Operación`))) %>% 
+  filter(`Nemotécnico del Emisor` %in% c("BCCR","G"), 
+         !`Nemotécnico del instrumento` %in% c("bemv", "tp$", "tpras", "tptba", "TUDES", "tudes", "bemud", "TPTBA")) %>% 
+  group_by(ano.op = year(as.Date(`Fecha de Operación`)),mes.op = month(as.Date(`Fecha de Operación`)), ano.ve = year(`Fecha de Vencimiento`), mes.ve =month(`Fecha de Vencimiento`)) %>% summarise(cantidad = n(), .groups = "keep") %>% ungroup() 
