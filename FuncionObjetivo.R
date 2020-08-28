@@ -33,36 +33,38 @@ FactoresDescuento <- function(t,T,B0,B1,B2,n1){
   exp(-Tau(t,T)*NelsonSiegel(B0,B1,B2,n1,t,T))
 }
 
-ValorarBonos <- function(FechaUltimoPagoIntereses,FechaOperacion,FechaVencimiento,Periodicidad,TasaFacial,ValorFacial,B0,B1,B2,n1) {
+ValorarBonos <- function(FechaUltimoPagoIntereses,FechaOperacion,FechaVencimiento,Periodicidad,TasaFacial,B0,B1,B2,n1) {
   if(Periodicidad==0){
-    Precio<-ValorFacial*FactoresDescuento(FechaOperacion,FechaVencimiento,B0,B1,B2,n1)
+    Precio<-FactoresDescuento(FechaOperacion,FechaVencimiento,B0,B1,B2,n1)
   }
   else{
     FechasPago<-seq.Date(from = FechaUltimoPagoIntereses,to = FechaVencimiento,by = paste(as.character(12/Periodicidad),"months",sep=" "))
     FechasPendientes<-FechasPago[-1]
-    FactoresDesc<-FactoresDescuento(FechaOperacion,FechaVencimiento,B0,B1,B2,n1) 
+    FactoresDesc<-Vectorize(FactoresDescuento)(FechaOperacion,FechasPendientes,B0,B1,B2,n1) 
     
-    Precio<-ValorFacial*c(rep(TasaFacial,length(FechasPendientes)-1),1+TasaFacial)*FactoresDescuento
+    Precio<-c(rep(TasaFacial,length(FechasPendientes)-1),1+TasaFacial)*FactoresDescuento
+    return(sum(Precio))
   }
-  return(sum(Precio))
 }
 
 
 # El Data Frame de BoletasMes debe contener las siguientes variables (para una única fecha de operación y una moneda de liquidación):
-# Valor transado
+# Precio
 # Tasa facial
-# Valor facial 
 # Ultimo pago de interes 
 # Fecha vencimiento
+# Fecha de operación
 
 
 FuncionObjetivo <- function(BoletasMes,B0,B1,B2,n1,alpha){
 BoletasBonos<-BoletasMes %>% filter(titulo=='BONOS',Nemotecnico.del.Emisor %in% c("BCCR","G"),
                                     !Nemotecnico.del.instrumento %in% c("bemv", "tp$", "tpras", "tptba", "TUDES", "tudes", "bemud", "TPTBA"))
 
+## Además los filtros de la Tabla de Isaac
+
 BoletasBonos<-BoletasBonos %>% mutate(PrecioTeorico=ValorarBonos(Fecha.Ultimo.Pago.Intereses,Fecha.de.Operacion,Fecha.de.Vencimiento,
-                                                                Periodicidad,Tasa.facial,Valor.facial,B0,B1,B2,n1), Ponderador=exp(-Tau(Fecha.de.Operacion,Fecha.de.Vencimiento)*alpha)) %>% 
-                              mutate(Ponderador=Ponderador/sum(Ponderador)) %>% mutate( Error=Ponderador*(PrecioTeorico-Valor.facial)^2)
+                                                                Periodicidad,Tasa.facial,B0,B1,B2,n1), Ponderador=exp(-Tau(Fecha.de.Operacion,Fecha.de.Vencimiento)*alpha)) %>% 
+                              mutate(Ponderador=Ponderador/sum(Ponderador)) %>% mutate( Error=Ponderador*(PrecioTeorico-Precio)^2)
                               #CORROBORAR QUE EL PONDERADOR DEBA SUMAR 1   
                               
 ErrorTotal<-sum(Boletas$Error)
