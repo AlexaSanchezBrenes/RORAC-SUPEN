@@ -1,5 +1,5 @@
 #              
-#                                    Consultoría RORAC-SUPEN
+#                                    ConsultorÃ­a RORAC-SUPEN
 #      Función a optimizar para obtener la curva cero cupón mediante el Modelo de Nelson-Siegel
 
 # Autores:
@@ -15,6 +15,7 @@
 library(readr)
 library(dygraphs)
 library(xts)
+library(tictoc)
 library(stringi)
 library(dplyr)
 library("tools")
@@ -29,10 +30,10 @@ options(stringsAsFactors = FALSE)
 Dic <- "C:/Users/EQUIPO/Desktop/Estudios/RORAC-SUPEN/Boletas"
 
 # Vector de tasas cortas mensuales TRI:
-TRI.inicial <- 2.75/100
+TRI.corta <- c(1.25,1.28,1.25,1.26,0.76,0.75)/100
 
 # Tasa de último vencimiento TRI en el primer mes observado:
-TRI.final <- 9.42/100
+TRI.larga <- 9.09/100
 
 # Ajuste de pesos:
 alpha <- 1
@@ -134,41 +135,12 @@ FactoresDescuento <- function(X, t, Te){
   B2 <- X[3]
   n1 <- X[4] 
   
-  NelsonSiegel <- B0 + B1 * ((1-exp(-Tau(t, Te)))/(Tau(t,Te)/n1)) + 
-    B2 * (((1-exp(-Tau(t, Te)))/(Tau(t,Te)/n1)) - exp(-Tau(t,Te)/n1))
+  NelsonSiegel <- B0 + B1 * ((1-exp(-Tau(t, Te)/n1))/(Tau(t,Te)/n1)) + 
+    B2 * (((1-exp(-Tau(t, Te)/n1))/(Tau(t,Te)/n1)) - exp(-Tau(t,Te)/n1))
   
   Factor <- exp(-Tau(t,Te)*NelsonSiegel)
   
   return(Factor)
-}
-
-# Función para generar una curva precio bono cero cupón:
-Curva.precio <- function(X, fecha.inicial, fecha.final){
-
-  # Redefinimos parámetros:
-  B0 <- X[1]
-  B1 <- X[2]
-  B2 <- X[3]
-  n1 <- X[4]
-  
-  # Se crean las fechas de la curva:
-  fechas <- seq.Date(from = as.Date(fecha.inicial),
-                     to = as.Date(fecha.final),
-                     by = "days")
-  # Se generan las observaciones:
-  datos.curva <- data.frame(fechas.iniciales = rep(fecha.inicial,length(fechas)),
-                      fechas.finales = fechas) %>% 
-    mutate(Tau = as.double(difftime(ymd(fechas.finales),
-                                    ymd(fechas.iniciales),
-                                    units = "days"))/360) %>% 
-    mutate(NelsonSiegel = B0 + B1 * ((1-exp(-Tau))/(Tau/n1)) + 
-             B2 * (((1-exp(-Tau))/(Tau/n1)) - exp(-Tau/n1))) %>% 
-    mutate(Precio = exp(-Tau*NelsonSiegel)) %>% 
-    mutate(Precio = ifelse(is.na(Precio),1,Precio))
-  
-  # Se crea la serie de tiempo:
-  resultado <- xts(datos.curva$Precio, order.by = datos.curva$fechas.finales)
-  return(resultado)
 }
 
 # Funcion para calcular el precio teórico de un bono:
@@ -187,6 +159,35 @@ ValorarBonos <- function(FechaUltimoPagoIntereses,FechaOperacion,FechaVencimient
     Precio <- sum(c(rep(TasaFacial,length(FechasPago)-1),1+TasaFacial)*FactoresDesc)
   }
   return(Precio)
+}
+
+# Función para generar una curva precio bono cero cupón:
+Curva <- function(X, fecha.inicial, fecha.final){
+  
+  # Redefinimos parámetros:
+  B0 <- X[1]
+  B1 <- TRI.corta[i]-B0
+  B2 <- X[2]
+  n1 <- X[3]
+  
+  # Se crean las fechas de la curva:
+  fechas <- seq.Date(from = as.Date(fecha.inicial),
+                     to = as.Date(fecha.final),
+                     by = "days")
+  # Se generan las observaciones:
+  datos.curva <- data.frame(fechas.iniciales = rep(fecha.inicial,length(fechas)),
+                            fechas.finales = fechas) %>% 
+    mutate(Tau = as.double(difftime(ymd(fechas.finales),
+                                    ymd(fechas.iniciales),
+                                    units = "days"))/360) %>% 
+    mutate(NelsonSiegel = B0 + B1 * ((1-exp(-Tau/n1))/(Tau/n1)) + 
+             B2 * (((1-exp(-Tau/n1))/(Tau/n1)) - exp(-Tau/n1))) %>% 
+    mutate(rho = exp(NelsonSiegel)-1) 
+  datos.curva[1,5] <- 0
+  
+  # Se crea la serie de tiempo:
+  resultado <- xts(datos.curva$rho, order.by = datos.curva$fechas.finales)
+  return(resultado)
 }
 
 # Función para calcular los tiempos de cada cero cupon en cuponado:
@@ -213,71 +214,116 @@ Tau.total <- function(fila){
 FuncionObjetivo <- function(X){
   # Redefinimos parámetros:
   B0 <- X[1]
-  B1 <- X[2]
-  B2 <- X[3]
-  n1 <- X[4] 
+  B1 <- TRI.corta[i]-B0
+  B2 <- X[2]
+  n1 <- X[3] 
   
   # Aplicamos a todo el dataframe y creamos los sumandos:
-  DiferenciasPrecio <- bind_rows(lapply(split(Lista.Bonos[[i]], seq(nrow(Lista.Bonos[[i]]))), Tau.total)) %>% 
-    mutate(monto = ifelse(Fecha.Pago == Fecha.de.Vencimiento, 1+Tasa.facial, Tasa.facial), NelsonSiegel = B0 + B1 * ((1-exp(-Tau))/(Tau/n1)) + 
-             B2 * (((1-exp(-Tau))/(Tau/n1)) - exp(-Tau/n1))) %>%
+  DiferenciasPrecio <- Tau.aplicado %>% 
+    mutate(monto = ifelse(Fecha.Pago == Fecha.de.Vencimiento, 1+Tasa.facial, Tasa.facial), NelsonSiegel = B0 + B1 * ((1-exp(-Tau/n1))/(Tau/n1)) + 
+             B2 * (((1-exp(-Tau/n1))/(Tau/n1)) - exp(-Tau/n1))) %>%
     mutate(FactorDesc = exp(-Tau*NelsonSiegel)) %>% 
     group_by(Numero.de.Contrato.Largo) %>%
     mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
     ungroup() %>% 
-    mutate(Ponderador = exp(-as.double(difftime(ymd(Fecha.de.Vencimiento),
-                                                ymd(Fecha.de.Operacion),
-                                                units = "days"))/360*alpha)) %>%
-    select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Ponderador) %>% 
+    select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Fecha.de.Vencimiento) %>%
     unique() %>% 
-    mutate(Ponderador = Ponderador/sum(Ponderador)) %>%
-    mutate(Error = Ponderador*(PrecioTeorico-Precio)^2) %>% 
-    select(Numero.de.Contrato.Largo,Mes,Error)
+    group_by(year(as.Date(Fecha.de.Vencimiento))) %>% 
+    mutate(Error = abs(PrecioTeorico-Precio)/n()) %>% 
+    ungroup()
   
   # Se calcula el error total:
-  ErrorTotal <- sum(DiferenciasPrecio$Error)
+  ErrorTotal <- max(DiferenciasPrecio$Error)
   
   # Penalización por no estar en restricciones:
-  if(abs(TRI.inicial - (B0+B1)) > 1e-13 | 0 >= B0){
+  if((0 >= B0) | (n1==0)){
     ErrorTotal <- ErrorTotal+1e4
   }
   return(ErrorTotal)
 }
 
+# Función del máximo error:
+MaxError <- function(X){
+  # Redefinimos parámetros:
+  B0 <- X[1]
+  B1 <- TRI.corta[i]-B0
+  B2 <- X[2]
+  n1 <- X[3] 
+  
+  # Aplicamos a todo el dataframe y creamos los sumandos:
+  DiferenciasPrecio <- bind_rows(lapply(split(Lista.Bonos[[i]], seq(nrow(Lista.Bonos[[i]]))), Tau.total)) %>% 
+    mutate(monto = ifelse(Fecha.Pago == Fecha.de.Vencimiento, 1+Tasa.facial, Tasa.facial), NelsonSiegel = B0 + B1 * ((1-exp(-Tau/n1))/(Tau/n1)) + 
+             B2 * (((1-exp(-Tau/n1))/(Tau/n1)) - exp(-Tau/n1))) %>%
+    mutate(FactorDesc = exp(-Tau*NelsonSiegel)) %>% 
+    group_by(Numero.de.Contrato.Largo) %>%
+    mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
+    ungroup() %>% 
+    select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio) %>% 
+    unique() %>% 
+    mutate(Error = abs(PrecioTeorico-Precio))
+  
+  # Se calcula el error Máximo:
+  ErrorMax <- max(DiferenciasPrecio$Error)
+  return(ErrorMax)
+}
+
 #---------------------------------------- Optimización de Parámetros:
+
+# Incializa lista de resultados:
+Curvas.Terminadas <- list()
+Beta2Inicial <- 0
 
 # Optimizamos la función objetivo para cada mes en los datos:
 for (i in 1:length(Lista.Bonos)) {
-  i <- 1
+  
+  # Calculamos los Taus para cada cero cupón:
+  Tau.aplicado <- bind_rows(lapply(split(Lista.Bonos[[i]], seq(nrow(Lista.Bonos[[i]]))), Tau.total))
+  
   # Limite superior del eta_1:
   lim.n <- as.double(difftime(ymd(max(Lista.Bonos[[i]]$Fecha.de.Operacion)),
                     ymd(min(Lista.Bonos[[i]]$Fecha.de.Operacion)),
-                    units = "days"))
+                    units = "days"))/360
   
-  tictoc::tic()
+  # Definimos el eta1 incial:
+  if(i == 1){
+    Eta1Inicial <- lim.n/2
+  }else{
+    Eta1Inicial <- parametros$par[3]
+  }
+  
   # Realizamos la optimización:
-  parametros <- psoptim(par = c(TRI.final, TRI.inicial-TRI.final, 0, lim.n/2),
-                        fn = FuncionObjetivo1,
-                        lower = c((1-2/100)*TRI.final, -1, -1, 0),
-                        upper = c((1+2/100)*TRI.final, 1, 1, lim.n),
-                        control = list(s = 100, hybrid = TRUE))
-  tictoc::toc()
-
+  parametros <- psoptim(par = c(TRI.larga, Beta2Inicial, Eta1Inicial),
+                        fn = FuncionObjetivo,
+                        lower = c((1-2/100)*TRI.larga, -5, 0),
+                        upper = c((1+2/100)*TRI.larga, 5, lim.n),
+                        control = list(maxit = 100,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
+  
+  # Error después de optimizar:
+  ErrorFinal <- FuncionObjetivo(parametros$par)
+  
+#---------------------------------------- Visualización:  
+  
+  # Definimos el tiempo de la serie:
+  Fecha.Inicial <- as.Date(Lista.Bonos[[i]]$Fecha.de.Operacion[1])-day(Lista.Bonos[[i]]$Fecha.de.Operacion[1])+1
+  Fecha.Final <- Fecha.Inicial%m+% years(5) 
+  
+  # Definimos la serie de tiempo:
+  curva.rho <- Curva(parametros$par,Fecha.Inicial,Fecha.Final)
+  
+  # Grafico de las curvas más reciente:
+  graf.rho <- dygraph(curva.rho,
+                      main = "Curva Cero Cupón", 
+                      xlab = "Fecha", ylab = "Tasa Anualizada",width = "100%") %>% 
+    dySeries("V1", label = "rho") 
+  
+  # Guardamos resultados:
+  Curvas.Terminadas[[i]] <- list(Parametros = parametros$par,
+                               Error = ErrorFinal,
+                               Grafico = graf.rho) 
+  
+  # Redefinimos puntos iniciales:
+  Beta2Inicial <- parametros$par[[2]]
 }
 
-#---------------------------------------- Visualización:
 
-# Ejemplo de parámetros:
-X <- c(0.09, -0.02, 0.05, 96)
 
-# Definimos la serie de tiempo reciente:
-curva.pre <- Curva.precio(X,"2020-08-01","2025-08-01")
-
-# Grafico de las curvas más reciente:
-graf.pre <- dygraph(curva.pre,main = "Curva Precio Bono Cero Cupón", 
-                         xlab = "Fecha", ylab = "Factor de Descuento Esperado",width = "100%") %>% 
-  dySeries("V1", label = "Precio") %>% 
-  dyOptions(size=2)
-
-# Visualizamos:
-graf.pre
