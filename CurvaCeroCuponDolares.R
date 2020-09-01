@@ -92,4 +92,4 @@ dygraph(tabla, main = "Curva Precio Bonos Cero Cupón ($)") %>%
   dyAxis("y", label = "Factor de Descuento Esperado", independentTicks = TRUE) %>%
   dyOptions(colors = RColorBrewer::brewer.pal(7, "YlGnBu")[c(3,4,5,6,7)])
 
-
+#Prueba
