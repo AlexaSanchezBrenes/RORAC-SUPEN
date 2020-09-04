@@ -1,5 +1,5 @@
 #              
-#                                    ConsultorÃ­a RORAC-SUPEN
+#                                    Consultoría RORAC-SUPEN
 #      Función a optimizar para obtener la curva cero cupón mediante el Modelo de Nelson-Siegel
 
 # Autores:
@@ -183,16 +183,21 @@ Curva <- function(X, fecha.inicial, fecha.final){
     mutate(NelsonSiegel = B0 + B1 * ((1-exp(-Tau/n1))/(Tau/n1)) + 
              B2 * (((1-exp(-Tau/n1))/(Tau/n1)) - exp(-Tau/n1))) %>% 
     mutate(rho = exp(NelsonSiegel)-1) 
-  datos.curva[1,5] <- 0
+  datos.curva[1,5] <- TRI.corta[[i]]
   
   # Se crea la serie de tiempo:
-  resultado <- xts(datos.curva$rho, order.by = datos.curva$fechas.finales)
+  resultado <- xts(datos.curva$rho*100, order.by = datos.curva$fechas.finales)
   return(resultado)
 }
 
 # Función para calcular los tiempos de cada cero cupon en cuponado:
 Tau.total <- function(fila){
   
+  # Creamoe el Tau del ponderador:
+  fila <- fila %>% 
+    mutate(Tau.Vencimiento = as.double(difftime(ymd(as.Date(Fecha.de.Vencimiento)),
+                                                ymd(as.Date(Fecha.de.Operacion)),
+                                                units = "days"))/360)
   if(fila[,"Periodicidad"]==0){
     tabla <- fila %>% mutate(Tau = as.double(difftime(ymd(Fecha.de.Vencimiento),
                                                       ymd(Fecha.de.Operacion),
@@ -205,13 +210,13 @@ Tau.total <- function(fila){
     tabla <- fila[rep(seq_len(nrow(fila)), each = length(Taus)), ] %>% mutate(Fecha.Pago = Taus) %>% 
       mutate(Tau = as.double(difftime(ymd(Fecha.Pago),
                                       ymd(Fecha.de.Operacion),
-                                      units = "days"))/360)
+                                      units = "days"))/360) 
   }
   return(tabla)
 }
 
-# Función que debe ser minimizada para estimar parámetros:
-FuncionObjetivo <- function(X){
+# Función que debe ser minimizada para estimar parámetros usando diferencia máxima:
+FuncionObjetivo.Max <- function(X){
   # Redefinimos parámetros:
   B0 <- X[1]
   B1 <- TRI.corta[i]-B0
@@ -219,7 +224,7 @@ FuncionObjetivo <- function(X){
   n1 <- X[3] 
   
   # Aplicamos a todo el dataframe y creamos los sumandos:
-  DiferenciasPrecio <- Tau.aplicado %>% 
+  DiferenciasPrecio.Max <- Tau.aplicado %>% 
     mutate(monto = ifelse(Fecha.Pago == Fecha.de.Vencimiento, 1+Tasa.facial, Tasa.facial), NelsonSiegel = B0 + B1 * ((1-exp(-Tau/n1))/(Tau/n1)) + 
              B2 * (((1-exp(-Tau/n1))/(Tau/n1)) - exp(-Tau/n1))) %>%
     mutate(FactorDesc = exp(-Tau*NelsonSiegel)) %>% 
@@ -228,12 +233,10 @@ FuncionObjetivo <- function(X){
     ungroup() %>% 
     select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Fecha.de.Vencimiento) %>%
     unique() %>% 
-    group_by(year(as.Date(Fecha.de.Vencimiento))) %>% 
-    mutate(Error = abs(PrecioTeorico-Precio)/n()) %>% 
-    ungroup()
+    mutate(Error = abs(PrecioTeorico-Precio)) 
   
   # Se calcula el error total:
-  ErrorTotal <- max(DiferenciasPrecio$Error)
+  ErrorTotal <- max(DiferenciasPrecio.Max$Error)
   
   # Penalización por no estar en restricciones:
   if((0 >= B0) | (n1==0)){
@@ -242,8 +245,8 @@ FuncionObjetivo <- function(X){
   return(ErrorTotal)
 }
 
-# Función del máximo error:
-MaxError <- function(X){
+# Función que debe ser minimizada para estimar parámetros usando ponderación:
+FuncionObjetivo.Pon <- function(X){
   # Redefinimos parámetros:
   B0 <- X[1]
   B1 <- TRI.corta[i]-B0
@@ -251,22 +254,40 @@ MaxError <- function(X){
   n1 <- X[3] 
   
   # Aplicamos a todo el dataframe y creamos los sumandos:
-  DiferenciasPrecio <- bind_rows(lapply(split(Lista.Bonos[[i]], seq(nrow(Lista.Bonos[[i]]))), Tau.total)) %>% 
+  DiferenciasPrecio.Pon <- Tau.aplicado %>% 
     mutate(monto = ifelse(Fecha.Pago == Fecha.de.Vencimiento, 1+Tasa.facial, Tasa.facial), NelsonSiegel = B0 + B1 * ((1-exp(-Tau/n1))/(Tau/n1)) + 
              B2 * (((1-exp(-Tau/n1))/(Tau/n1)) - exp(-Tau/n1))) %>%
     mutate(FactorDesc = exp(-Tau*NelsonSiegel)) %>% 
     group_by(Numero.de.Contrato.Largo) %>%
     mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
     ungroup() %>% 
-    select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio) %>% 
+    select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Fecha.de.Vencimiento, Tau.Vencimiento) %>%
     unique() %>% 
-    mutate(Error = abs(PrecioTeorico-Precio))
+    mutate(Ponderador = exp(Tau.Vencimiento*alpha)) %>% 
+    mutate(Ponderador = Ponderador/sum(Ponderador)) %>% 
+    mutate(Error = Ponderador*(PrecioTeorico-Precio)^2) 
   
-  # Se calcula el error Máximo:
-  ErrorMax <- max(DiferenciasPrecio$Error)
-  return(ErrorMax)
+  # Se calcula el error total:
+  ErrorTotal <- sum(DiferenciasPrecio.Pon$Error)
+  
+  # Penalización por no estar en restricciones:
+  if((0 >= B0) | (n1==0)){
+    ErrorTotal <- ErrorTotal+1e4
+  }
+  return(ErrorTotal)
 }
 
+#---------------------------------------- Pruebas de tiempo por función:
+
+# Redefinimos puntos iniciales:
+X <- c(TRI.larga, Beta2Inicial, Eta1Inicial)
+
+tic()
+FuncionObjetivo.Max(X)
+toc()
+tic()
+FuncionObjetivo.Pon(X)
+toc()
 #---------------------------------------- Optimización de Parámetros:
 
 # Incializa lista de resultados:
@@ -275,7 +296,7 @@ Beta2Inicial <- 0
 
 # Optimizamos la función objetivo para cada mes en los datos:
 for (i in 1:length(Lista.Bonos)) {
-  
+  i <- 1
   # Calculamos los Taus para cada cero cupón:
   Tau.aplicado <- bind_rows(lapply(split(Lista.Bonos[[i]], seq(nrow(Lista.Bonos[[i]]))), Tau.total))
   
@@ -290,14 +311,22 @@ for (i in 1:length(Lista.Bonos)) {
   }else{
     Eta1Inicial <- parametros$par[3]
   }
-  
-  # Realizamos la optimización:
-  parametros <- psoptim(par = c(TRI.larga, Beta2Inicial, Eta1Inicial),
-                        fn = FuncionObjetivo,
-                        lower = c((1-2/100)*TRI.larga, -5, 0),
-                        upper = c((1+2/100)*TRI.larga, 5, lim.n),
-                        control = list(maxit = 100,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
-  
+  tic()
+  # Realizamos la optimización con función objetivo de Máximo:
+  parametros.Max <- psoptim(par = c(TRI.larga, Beta2Inicial, Eta1Inicial),
+                        fn = FuncionObjetivo.Max,
+                        lower = c(-2/100+TRI.larga, -5, 0),
+                        upper = c(2/100+TRI.larga, 5, lim.n),
+                        control = list(maxit = 300,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
+  toc()
+  tic()
+  # Realizamos la optimización con función objetivo de Ponderación:
+  parametros.Pon <- psoptim(par = c(TRI.larga, Beta2Inicial, Eta1Inicial),
+                            fn = FuncionObjetivo.Pon,
+                            lower = c(-2/100+TRI.larga, -5, 0),
+                            upper = c(2/100+TRI.larga, 5, lim.n),
+                            control = list(maxit = 300,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
+  toc()
   # Error después de optimizar:
   ErrorFinal <- FuncionObjetivo(parametros$par)
   
@@ -324,6 +353,4 @@ for (i in 1:length(Lista.Bonos)) {
   # Redefinimos puntos iniciales:
   Beta2Inicial <- parametros$par[[2]]
 }
-
-
 
