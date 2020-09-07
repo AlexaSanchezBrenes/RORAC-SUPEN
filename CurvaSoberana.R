@@ -13,6 +13,7 @@
 
 # Paquetes necesarios:
 library(readr)
+library(optimization)
 library(dygraphs)
 library(xts)
 library(tictoc)
@@ -20,8 +21,10 @@ library(stringi)
 library(dplyr)
 library("tools")
 library(stringr)
+library(GA)
 library(lubridate)
 library(pso)
+Sys.setlocale("LC_TIME", "Spanish")
 options(stringsAsFactors = FALSE)
 
 #---------------------------------------- Parámetros Generales:
@@ -279,16 +282,112 @@ FuncionObjetivo.Pon <- function(X){
 
 #---------------------------------------- Pruebas de tiempo por función:
 
-# Redefinimos puntos iniciales:
-X <- c(TRI.larga, Beta2Inicial, Eta1Inicial)
+# Redefinimos puntos iniciales de prueba:
+X <- c(0.1109,	5,	0.05695203)
 
+# Primer mes
+i <- 1 
+
+# Limite superior del eta_1:
+lim.n <- as.double(difftime(ymd(max(Lista.Bonos[[i]]$Fecha.de.Vencimiento)),
+                            ymd(min(Lista.Bonos[[i]]$Fecha.de.Operacion)),
+                            units = "days"))/360
+
+# Calculamos los Taus para cada cero cupón:
+Tau.aplicado <- bind_rows(lapply(split(Lista.Bonos[[i]], seq(nrow(Lista.Bonos[[i]]))), Tau.total))
+
+# Prueba:
 tic()
 FuncionObjetivo.Max(X)
 toc()
 tic()
 FuncionObjetivo.Pon(X)
 toc()
-#---------------------------------------- Optimización de Parámetros:
+
+#---------------------------------------- Prueba para Optimizadores:
+
+# Incializa parámetros:
+Beta2Inicial <- 0
+
+## Particle Swarm Optimization
+
+tic()
+# Realizamos la optimización con función objetivo de Máximo:
+prueba.max.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, lim.n/2),
+                          fn = FuncionObjetivo.Max,
+                          lower = c(-2/100+TRI.larga, -5, 0),
+                          upper = c(2/100+TRI.larga, 5, lim.n),
+                          control = list(maxit = 1000,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
+toc()
+tic()
+# Realizamos la optimización con función objetivo de Ponderación:
+prueba.pon.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, lim.n/2),
+                          fn = FuncionObjetivo.Pon,
+                          lower = c(-2/100+TRI.larga, -5, 0),
+                          upper = c(2/100+TRI.larga, 5, lim.n),
+                          control = list(maxit = 1000,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
+toc()
+
+## Simulated Annealing
+
+tic()
+# Realizamos la optimización con función objetivo de Máximo:
+prueba.max.sa <- optim_sa(fun = FuncionObjetivo.Max,
+                          start = c(TRI.larga, Beta2Inicial, lim.n/2),
+                          trace = TRUE,
+                          lower = c(-2/100+TRI.larga, -5, 0),
+                          upper = c(2/100+TRI.larga, 5, lim.n),
+                          control = list(rf = c(0.95, 0.95, 0.95),
+                                         nlimit = 1000))
+toc()
+tic()
+# Realizamos la optimización con función objetivo de Ponderación:
+prueba.max.sa <- optim_sa(fun = FuncionObjetivo.Pon,
+                          start = c(TRI.larga, Beta2Inicial, lim.n/2),
+                          trace = TRUE,
+                          lower = c(-2/100+TRI.larga, -5, 0),
+                          upper = c(2/100+TRI.larga, 5, lim.n),
+                          control = list(rf = c(0.95, 0.95, 0.95),
+                                         nlimit = 1000))
+toc()
+
+## Nelder-Mead
+
+A=matrix(c(1,0,0,0,1,0,0,0,1,-1,0,0,0,-1,0,0,0,-1),nrow = 6,byrow = T)
+B=c(-2/100+TRI.larga, -5, 0,-2/100-TRI.larga, -5, -lim.n)
+
+tic()
+# Realizamos la optimización con función objetivo de Máximo:
+prueba.max.nm <-constrOptim(theta = c(TRI.larga, Beta2Inicial, lim.n/2),
+                            f = FuncionObjetivo.Max, grad = NULL, ui=A, 
+                            ci=B, control = list(maxit=1000),
+                            method = "Nelder-Mead")
+toc() 
+tic()
+# Realizamos la optimización con función objetivo de Ponderación:
+prueba.pon.nm <- constrOptim(theta = c(TRI.larga, Beta2Inicial, lim.n/2), 
+                             f = FuncionObjetivo.Pon, ui=A,
+                             ci=B, control = list(maxit=1000),
+                             method = "Nelder-Mead")
+toc() 
+
+## Genetic Algorithm 
+
+tic()
+
+# Realizamos la optimización con función objetivo de Máximo:
+prueba.max.ga <- ga(type = "real-valued",fitness = FuncionObjetivo.Max, 
+                    lower = c(-2/100+TRI.larga, -5, 0),
+                    upper = c(2/100+TRI.larga, 5, lim.n),maxiter=1000)
+toc() 
+tic()
+# Realizamos la optimización con función objetivo de Ponderación:
+prueba.pon.ga <- ga(type = "real-valued",fitness = FuncionObjetivo.Pon, 
+                    lower = c(-2/100+TRI.larga, -5, 0),
+                    upper = c(2/100+TRI.larga, 5, lim.n),maxiter=1000)
+toc()  
+
+#---------------------------------------- Creación de la Curva para cada Mes:
 
 # Incializa lista de resultados:
 Curvas.Terminadas <- list()
@@ -301,34 +400,23 @@ for (i in 1:length(Lista.Bonos)) {
   Tau.aplicado <- bind_rows(lapply(split(Lista.Bonos[[i]], seq(nrow(Lista.Bonos[[i]]))), Tau.total))
   
   # Limite superior del eta_1:
-  lim.n <- as.double(difftime(ymd(max(Lista.Bonos[[i]]$Fecha.de.Operacion)),
-                    ymd(min(Lista.Bonos[[i]]$Fecha.de.Operacion)),
-                    units = "days"))/360
+  lim.n <- as.double(difftime(ymd(max(Lista.Bonos[[i]]$Fecha.de.Vencimiento)),
+                              ymd(min(Lista.Bonos[[i]]$Fecha.de.Operacion)),
+                              units = "days"))/360
   
   # Definimos el eta1 incial:
   if(i == 1){
     Eta1Inicial <- lim.n/2
   }else{
-    Eta1Inicial <- parametros$par[3]
+    Eta1Inicial <- parametros.definitivos$par[3]
   }
-  tic()
-  # Realizamos la optimización con función objetivo de Máximo:
-  parametros.Max <- psoptim(par = c(TRI.larga, Beta2Inicial, Eta1Inicial),
-                        fn = FuncionObjetivo.Max,
-                        lower = c(-2/100+TRI.larga, -5, 0),
-                        upper = c(2/100+TRI.larga, 5, lim.n),
-                        control = list(maxit = 300,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
-  toc()
-  tic()
-  # Realizamos la optimización con función objetivo de Ponderación:
-  parametros.Pon <- psoptim(par = c(TRI.larga, Beta2Inicial, Eta1Inicial),
-                            fn = FuncionObjetivo.Pon,
-                            lower = c(-2/100+TRI.larga, -5, 0),
-                            upper = c(2/100+TRI.larga, 5, lim.n),
-                            control = list(maxit = 300,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
-  toc()
-  # Error después de optimizar:
-  ErrorFinal <- FuncionObjetivo(parametros$par)
+  
+  # Realizamos la optimización con función objetivo:
+  parametros.definitivos <- psoptim(par = c(TRI.larga, Beta2Inicial, Eta1Inicial),
+                                    fn = FuncionObjetivo.Pon,
+                                    lower = c(-2/100+TRI.larga, -5, 0),
+                                    upper = c(2/100+TRI.larga, 5, lim.n),
+                                    control = list(maxit = 1000,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
   
 #---------------------------------------- Visualización:  
   
@@ -337,7 +425,7 @@ for (i in 1:length(Lista.Bonos)) {
   Fecha.Final <- Fecha.Inicial%m+% years(5) 
   
   # Definimos la serie de tiempo:
-  curva.rho <- Curva(parametros$par,Fecha.Inicial,Fecha.Final)
+  curva.rho <- Curva(parametros.definitivos$par,Fecha.Inicial,Fecha.Final)
   
   # Grafico de las curvas más reciente:
   graf.rho <- dygraph(curva.rho,
@@ -346,11 +434,10 @@ for (i in 1:length(Lista.Bonos)) {
     dySeries("V1", label = "rho") 
   
   # Guardamos resultados:
-  Curvas.Terminadas[[i]] <- list(Parametros = parametros$par,
-                               Error = ErrorFinal,
-                               Grafico = graf.rho) 
+  Curvas.Terminadas[[i]] <- list(Parametros = parametros.definitivos$par,
+                                 Error = parametros.definitivos$value,
+                                 Grafico = graf.rho) 
   
   # Redefinimos puntos iniciales:
-  Beta2Inicial <- parametros$par[[2]]
+  Beta2Inicial <- parametros.definitivos$par[[2]]
 }
-
