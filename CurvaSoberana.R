@@ -218,8 +218,10 @@ Tau.total <- function(fila){
   return(tabla)
 }
 
+# Utilizando la versión original del modelo Nelson-Siegel:
+
 # Función que debe ser minimizada para estimar parámetros usando diferencia máxima:
-FuncionObjetivo.Max <- function(X){
+FuncionObjetivo.NS.Max <- function(X){
   # Redefinimos parámetros:
   B0 <- X[1]
   B1 <- TRI.corta[i]-B0
@@ -249,7 +251,7 @@ FuncionObjetivo.Max <- function(X){
 }
 
 # Función que debe ser minimizada para estimar parámetros usando ponderación:
-FuncionObjetivo.Pon <- function(X){
+FuncionObjetivo.NS.Pon <- function(X){
   # Redefinimos parámetros:
   B0 <- X[1]
   B1 <- TRI.corta[i]-B0
@@ -261,6 +263,80 @@ FuncionObjetivo.Pon <- function(X){
     mutate(monto = ifelse(Fecha.Pago == Fecha.de.Vencimiento, 1+Tasa.facial, Tasa.facial), NelsonSiegel = B0 + B1 * ((1-exp(-Tau/n1))/(Tau/n1)) + 
              B2 * (((1-exp(-Tau/n1))/(Tau/n1)) - exp(-Tau/n1))) %>%
     mutate(FactorDesc = exp(-Tau*NelsonSiegel)) %>% 
+    group_by(Numero.de.Contrato.Largo) %>%
+    mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
+    ungroup() %>% 
+    select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Fecha.de.Vencimiento, Tau.Vencimiento) %>%
+    unique() %>% 
+    mutate(Ponderador = exp(Tau.Vencimiento*alpha)) %>% 
+    mutate(Ponderador = Ponderador/sum(Ponderador)) %>% 
+    mutate(Error = Ponderador*(PrecioTeorico-Precio)^2) 
+  
+  # Se calcula el error total:
+  ErrorTotal <- sum(DiferenciasPrecio.Pon$Error)
+  
+  # Penalización por no estar en restricciones:
+  if((0 >= B0) | (n1==0)){
+    ErrorTotal <- ErrorTotal+1e4
+  }
+  return(ErrorTotal)
+}
+
+# Utilizando la versión alterada del modelo Svensson:
+
+# Función que debe ser minimizada para estimar parámetros usando diferencia máxima:
+FuncionObjetivo.SA.Max <- function(X){
+  # Redefinimos parámetros:
+  B0 <- X[1]
+  B1 <- TRI.corta[i]-B0
+  B2 <- X[2]
+  B3 <- X[3]
+  n1 <- X[4]
+  n2 <- x[5]
+  
+  # Aplicamos a todo el dataframe y creamos los sumandos:
+  DiferenciasPrecio.Max <- Tau.aplicado %>% 
+    mutate(monto = ifelse(Fecha.Pago == Fecha.de.Vencimiento, 1+Tasa.facial, Tasa.facial), 
+           SvenssonAlterada = B0 * Tau +
+             B1 * ((1-exp(-Tau/n1))*n1) + 
+             B2 * (1-(Tau/n1+1)*exp(-Tau/n1))*n1^2 +
+             B3 * (((1-(Tau/n1+1)*exp(-Tau/n1))*n1^2) - ((1-(Tau/n2+1)*exp(-Tau/n2))*n2^2))) %>%
+    mutate(FactorDesc = exp(-SvenssonAlterada)) %>% 
+    group_by(Numero.de.Contrato.Largo) %>%
+    mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
+    ungroup() %>% 
+    select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Fecha.de.Vencimiento) %>%
+    unique() %>% 
+    mutate(Error = abs(PrecioTeorico-Precio)) 
+  
+  # Se calcula el error total:
+  ErrorTotal <- max(DiferenciasPrecio.Max$Error)
+  
+  # Penalización por no estar en restricciones:
+  if((0 >= B0) | (n1==0)){
+    ErrorTotal <- ErrorTotal+1e4
+  }
+  return(ErrorTotal)
+}
+
+# Función que debe ser minimizada para estimar parámetros usando ponderación:
+FuncionObjetivo.SA.Pon <- function(X){
+  # Redefinimos parámetros:
+  B0 <- X[1]
+  B1 <- TRI.corta[i]-B0
+  B2 <- X[2]
+  B3 <- X[3]
+  n1 <- X[4]
+  n2 <- x[5]
+  
+  # Aplicamos a todo el dataframe y creamos los sumandos:
+  DiferenciasPrecio.Pon <- Tau.aplicado %>% 
+    mutate(monto = ifelse(Fecha.Pago == Fecha.de.Vencimiento, 1+Tasa.facial, Tasa.facial), 
+           SvenssonAlterada = B0 * Tau +
+             B1 * ((1-exp(-Tau/n1))*n1) + 
+             B2 * (1-(Tau/n1+1)*exp(-Tau/n1))*n1^2 +
+             B3 * (((1-(Tau/n1+1)*exp(-Tau/n1))*n1^2) - ((1-(Tau/n2+1)*exp(-Tau/n2))*n2^2))) %>%
+    mutate(FactorDesc = exp(-SvenssonAlterada)) %>% 
     group_by(Numero.de.Contrato.Largo) %>%
     mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
     ungroup() %>% 
@@ -425,7 +501,7 @@ for (i in 1:length(Lista.Bonos)) {
   Fecha.Final <- Fecha.Inicial%m+% years(5) 
   
   # Definimos la serie de tiempo:
-  curva.rho <- Curva(parametros.definitivos$par,Fecha.Inicial,Fecha.Final)
+  curva.rho <- Curva(c(0.1109, 0.4211761, 2.556457),Fecha.Inicial,Fecha.Final)
   
   # Grafico de las curvas más reciente:
   graf.rho <- dygraph(curva.rho,
