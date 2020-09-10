@@ -321,7 +321,7 @@ FuncionObjetivo.NS.Pon <- function(X){
 
 # Función que debe ser minimizada para estimar parámetros usando diferencia máxima:
 FuncionObjetivo.SA.Max <- function(X){
-  
+  X <- prueba.SA.max.pso$par
   # Redefinimos parámetros:
   B0 <- X[1]
   B1 <- TRI.corta[i]-B0
@@ -461,7 +461,7 @@ toc()
 tic()
 # Realizamos la optimización con función objetivo de Máximo:
 prueba.SA.max.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (20/360 + 5)/2, (lim.n+5)/2),
-                             fn = FuncionObjetivo.SA.Pon,
+                             fn = FuncionObjetivo.SA.Max,
                              lower = c(-2/100+TRI.larga, -5, -5, 20/360, 5),
                              upper = c(2/100+TRI.larga, 5, 5, 5, lim.n),
                              control = list(maxit = 1000,s = 20,w = -0.1832,c.p =0.5287,c.g = 3.1913))
@@ -579,7 +579,10 @@ for (i in 1:length(Lista.Bonos)) {
   graf.rho <- dygraph(curva.rho,
                       main = "Curva Cero Cupón", 
                       xlab = "Fecha", ylab = "Tasa Anualizada",width = "100%") %>% 
-    dySeries("V1", label = "rho") 
+    dySeries("V1", label = "rho") %>% 
+    dyAxis("y",
+           valueFormatter = "function(v){return (v).toFixed(1) + '%'}",
+           axisLabelFormatter = "function(v){return (v).toFixed(0) + '%'}")
   
   # Guardamos resultados:
   Curvas.Terminadas[[i]] <- list(Parametros = parametros.definitivos$par,
