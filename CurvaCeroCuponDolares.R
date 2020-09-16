@@ -117,3 +117,6 @@ g<-  dygraph(don, main = "Tasas Anualizadas en dólares (%)") %>%
 return(list(DatosCurvaDolar = data, Grafico = g ))
 
 }
+
+
+pb<-tasa.anualizada.dolarizada(Dic, periodo, archivo)

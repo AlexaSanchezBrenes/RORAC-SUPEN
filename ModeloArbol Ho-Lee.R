@@ -92,6 +92,58 @@ Svensson <- function(tao, col_ude){
   return(precio)
 }
 
+############################### PARA CALCULAR EL P(0,T) PARA LA CURVA EN DÓLARES #######################
+
+#Ubicacion del archivo de tasas spot----------------------------------------------------
+Dic<- setwd("~/RORAC SUPEN")
+#Periodo para el cual se quiere extraer el precio cero cupón -----------------
+periodo <-"2020-06-01"
+#Nombre el archivo. se debe mantener el nombre de la descarga pues indica el periodo
+#disponible histórico-------------------------------------------------------------------
+archivo <- "tnc_18_22.xls"
+
+#1) Información de las tasas en dólares compuestas semianuales------------------------------ 
+data <- read_excel(archivo, 
+                   col_names = FALSE, skip = 5) %>% filter_all(any_vars(!is.na(.)))
+Maduracion <- data[,1]
+data <- data [, -c(1,2)]
+
+fecha.inicial <- ymd(paste0("20",str_sub(archivo, start = 5, end = 6),"-", "01","-","01"))
+fecha.final <- ymd(paste0("20",str_sub(archivo, start = 8, end = 9),"-", "12","-","01"))
+vec.fechas <- seq.Date(from = fecha.inicial, to = fecha.final, by = "month")
+names <- vec.fechas[1:ncol(data)]
+colnames(data) <- names
+
+#2) Tasas anualizadas--------------------------------------------------------------------------
+rho<-((1+(data/2))^2)-1
+rho$Maduracion <- seq(from = 6, to = 1200, by = 6)
+
+#3)Función para obtener la interpolación de las tasas anualizadas---------------------------
+interpolacion<-function(x,y){
+  Maduracion = seq(from = x[1], to = x[length(x)], by = 1 )
+  ApproxFun <- approxfun(x , y)
+  rho <- ApproxFun(Maduracion)
+  interpolacion<-data.frame(Maduracion, rho)
+  return(interpolacion)
+}
+
+#4)Interpolación de los de las tasas cortas para cada mes--------------------------------------
+lista <-list()
+for(i in 1:(ncol(rho)-1)){
+  lista[[i]] = interpolacion(rho[,ncol(rho)], rho[,i]) %>% 
+    mutate(Periodo = names[i])
+}
+tabla<-do.call("rbind", lista)
+
+#5) Filtra tabla para periodo----------------------------------------------------------------------
+tabla<-tabla %>% 
+  filter(Periodo == periodo)
+
+Precio <- function(tao){
+  (1+tabla$rho[which(tabla$Maduracion==tao)])^-tao
+}
+
+
 #-----------------------------------------------------------------------------
 
 # Decrecimiento del ?rbol Binomial
