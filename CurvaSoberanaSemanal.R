@@ -531,7 +531,7 @@ Beta3Inicial <- 0
 
 tic()
 # Realizamos la optimización con función objetivo de Máximo:
-prueba.NS.max.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, mean(lim.n,20/7)),
+prueba.NS.max.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, (lim.n+20/7)/2),
                              fn = FuncionObjetivo.NS.Max,
                              lower = c(-2/100+TRI.larga, -5, 20/7),
                              upper = c(2/100+TRI.larga, 5, lim.n),
@@ -539,7 +539,7 @@ prueba.NS.max.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, mean(lim.n,20/7)),
 toc()
 tic()
 # Realizamos la optimización con función objetivo de Ponderación:
-prueba.NS.pon.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, mean(lim.n,20/7)),
+prueba.NS.pon.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, (lim.n+20/7)/2),
                              fn = FuncionObjetivo.NS.Pon,
                              lower = c(-2/100+TRI.larga, -5, 20/7),
                              upper = c(2/100+TRI.larga, 5, lim.n),
@@ -547,7 +547,7 @@ prueba.NS.pon.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, mean(lim.n,20/7)),
 toc()
 tic()
 # Realizamos la optimización con función objetivo de Máximo:
-prueba.NS.rep.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, mean(lim.n,20/7)),
+prueba.NS.rep.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, (lim.n+20/7)/2),
                              fn = FuncionObjetivo.NS.Rep,
                              lower = c(-2/100+TRI.larga, -5, 20/7),
                              upper = c(2/100+TRI.larga, 5, lim.n),
