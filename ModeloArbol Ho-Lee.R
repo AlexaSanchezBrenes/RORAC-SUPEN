@@ -19,7 +19,8 @@ library(zoo)
 
 # Para leer el archivo se le debe cambiar el formato a "xlsx"
 
-TRI_colones <- read_excel("TRI colones.xlsx",col_types = c("date", "numeric"))
+TRI_colones <- read_excel("TRI colones.xlsx",
+                          col_types = c("date", "numeric"))
 
 
 
@@ -28,23 +29,29 @@ TRI_colones <- TRI_colones[secuencia,]
 TRI_colones<-TRI_colones %>% mutate(Efectiva=log(1+`1 semana`))
 varianza_mensual_col<-4*var(TRI_colones$Efectiva)
 
-u_col<-1+varianza_mensual_col
-d_col<-1-varianza_mensual_col
+u_col<-1+sqrt(varianza_mensual_col)
+d_col<-1-sqrt(varianza_mensual_col)
 
 
 
 
 ################## Estimación de parámetros de Ho-Lee - Dólares #########################
-# Buscar tasas overnight: Para calcular varianza y r0
+# Tasas overnight: Para calcular varianza y r0
 
-# Para leer el archivo se le debe cambiar el formato a "xlsx"
 
-TRI_dolares <- read_excel("TRI dolares.xlsx",col_types = c("date", "numeric"))
+TRI_dolares1 <- read.table("TRI dolares.csv", sep = ",",
+                          dec = ".", header =  FALSE)
+TRI_dolares2 <- read.table("TRI dolares2.csv", sep = ",",
+                           dec = ".", header =  FALSE)
+
+
+TRI_dolares <- rbind(TRI_dolares2, TRI_dolares1)
+colnames(TRI_dolares) <- c("Fecha Emision", "Tasa", "Fecha Vencimiento")
 
 
 secuencia<-seq(from=1,to=nrow(TRI_dolares),by=7)
 TRI_dolares<- TRI_dolares[secuencia,]
-TRI_dolares<-TRI_dolares %>% mutate(Efectiva=log(1+`1 semana`))
+TRI_dolares<-TRI_dolares %>% mutate(Efectiva=log(1+Tasa))
 varianza_mensual_dol<-4*var(TRI_dolares$Efectiva)
 
 u_dol<-1+sqrt(varianza_mensual_dol) 
