@@ -35,6 +35,7 @@ d_col<-1-varianza_mensual_col
 
 
 ################## Estimación de parámetros de Ho-Lee - Dólares #########################
+# Buscar tasas overnight: Para calcular varianza y r0
 
 # Para leer el archivo se le debe cambiar el formato a "xlsx"
 
@@ -46,8 +47,8 @@ TRI_dolares<- TRI_dolares[secuencia,]
 TRI_dolares<-TRI_dolares %>% mutate(Efectiva=log(1+`1 semana`))
 varianza_mensual_dol<-4*var(TRI_dolares$Efectiva)
 
-u_dol<-1+varianza_mensual_dol
-d_dol<-1-varianza_mensual_dol
+u_dol<-1+sqrt(varianza_mensual_dol) 
+d_dol<-1-sqrt(varianza_mensual_dol)
 
 
 
@@ -80,12 +81,12 @@ tiempo_T = 12*15 #PREGUNTAR
 P_CCC <- list(c(0.09, -0.02,  0.05,    0, 96, 1), 
               c(0.07, -0.01,  -0.03, 0.05, 48, 64))
 
-#Variables diferencias en d?lares y colones:
+#Variables diferencias en dólares y colones:
 
-# Donde la u es la proporci?n de cuanto sube el indicador respectivo, en el 
+# Donde la u es la proporción de cuanto sube el indicador respectivo, en el 
 # segundo periodo si se indica como: u_2. Por otro lado d es la proporci?n
 # de cuanto baja el indicador respectivo, y se denota d_2 la propoci?n para
-# el segundo periodo. Adem?s, el factor k.
+# el segundo periodo. Además, el factor k.
 
 u2 = c(u_col, u_dol)
 
@@ -262,7 +263,7 @@ Arbol_Ho_Lee_D = function(col_dol){
   
   # Obtiene el vector de los descuentos D(0,t)
   vect_D_0_T = c(exp(-r_0), exp(-cumsum(vect_r_t))*Precio(7, col_dol)) # OJO: CAMBIAR 7 POR 1
-                                                                      # PREGUNTAR A VÍQUEZ: Por qué descontar con P(0,1) y no con exp(-r0)
+                                                                      
   
   return(vect_D_0_T)
 }
@@ -288,11 +289,12 @@ for(j in 1:10000){
 
 Simulaciones_promedio<-apply(X = Simulaciones,MARGIN = 1,FUN = mean)
 Simulaciones_ordered<-apply(X = Simulaciones,MARGIN = 1,FUN = sort)
-Simulaciones_VAR<-apply(X = Simulaciones_ordered,MARGIN = 2,FUN = function(x){quantile(x = x,probs=c(0.05,0.95))})
+#Simulaciones_VAR<-apply(X = Simulaciones_ordered,MARGIN = 2,FUN = function(x){quantile(x = x,probs=c(0.05,0.95))})
 Simulaciones500<-Simulaciones_ordered[1:500,]
 Simulaciones9500<-Simulaciones_ordered[9501:10000,]
 CVAR_5<-apply(Simulaciones500, 2, mean)
 CVAR_95<-apply(Simulaciones9500, 2, mean)
+
 tabla<-tabla %>% mutate(Precio=(1+rho)^-Maduracion)
 
 Fecha<-seq.Date(from = ymd(as.Date(periodo) %m+% months(6)),
@@ -303,11 +305,27 @@ df<-data.frame(Fecha=Fecha,Curva=tabla$Precio[1:length(Simulaciones_promedio)],S
                CVAR_5=CVAR_5,CVAR_95=CVAR_95)
 
 
-don <- xts(x = df$rho, order.by = data$Fecha)
-dygraph(df, main = "Comparación entre curva precio cero cupón y el modelo Ho-Lee") %>%
-  dyAxis("Fecha", drawGrid = FALSE) %>%
-  dySeries(c("CVAR_5", "Simulaciones_prom", "CVAR_95"), label = "Fecha") %>%
-  dyOptions(colors = RColorBrewer::brewer.pal(3, "Set1"))
+
+library(xts)
+
+
+
+series <- xts(x = df[,2:3], order.by = df$Fecha)
+#seriesS<-xts(x=df[,3],order.by=df$Fecha)
+#seriesC,seriesS)
+dygraph(series, main = "Comparación entre curva precio cero cupón y el modelo Ho-Lee") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) %>%
+  dySeries(name=c("Curva","Simulaciones_prom"), label="Curva Cero Cupón" ) %>%
+  dyOptions(colors = RColorBrewer::brewer.pal(2, "Set1"))
+
+# Grafico de Esperanza - CVaR:
+Jor_Graf <- dygraph(Serie_Jor, main = 'VolÃºmen Proyectado de Jornadas', xlab = "AÃ±o", ylab = "Total de Jornadas", width = "100%") %>%
+  dyOptions(drawPoints = TRUE, pointSize = 1, pointShape = "circle", includeZero = FALSE, gridLineColor = "lightseagreen", axisLineColor = "skyblue4") %>% 
+  dyLegend(show = "follow") %>% 
+  dySeries(c("Jor_Graf.CVaR_bajo", "Jor_Graf.Promedio", "Jor_Graf.CVaR_alto"), label = "Esperado") %>% 
+  dySeries(c("Serie_Jor"), label = "Observado")
+
+
 
 
 Curva <- zoo(df$Curva, df$Fecha)
