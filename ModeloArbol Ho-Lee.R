@@ -11,6 +11,45 @@ library(lubridate)
 library(purrr)
 library(readxl)
 library(ggplot2)
+library(stringr)
+library(dygraphs)
+library(zoo)
+
+################## Estimación de parámetros de Ho-Lee - Colones #########################
+
+# Para leer el archivo se le debe cambiar el formato a "xlsx"
+
+TRI_colones <- read_excel("TRI colones.xlsx",col_types = c("date", "numeric"))
+
+
+
+secuencia<-seq(from=1,to=nrow(TRI_colones),by=7)
+TRI_colones <- TRI_colones[secuencia,]
+TRI_colones<-TRI_colones %>% mutate(Efectiva=log(1+`1 semana`))
+varianza_mensual_col<-4*var(TRI_colones$Efectiva)
+
+u_col<-1+varianza_mensual_col
+d_col<-1-varianza_mensual_col
+
+
+
+
+################## Estimación de parámetros de Ho-Lee - Dólares #########################
+
+# Para leer el archivo se le debe cambiar el formato a "xlsx"
+
+TRI_dolares <- read_excel("TRI dolares.xlsx",col_types = c("date", "numeric"))
+
+
+secuencia<-seq(from=1,to=nrow(TRI_dolares),by=7)
+TRI_dolares<- TRI_dolares[secuencia,]
+TRI_dolares<-TRI_dolares %>% mutate(Efectiva=log(1+`1 semana`))
+varianza_mensual_dol<-4*var(TRI_dolares$Efectiva)
+
+u_dol<-1+varianza_mensual_dol
+d_dol<-1-varianza_mensual_dol
+
+
 
 # El presente código es de uso exclusivo como requisito en la oferta de la
 # consultor?a solicitada por la Superintendencia de Pensiones (SUPEN) para la 
@@ -32,7 +71,7 @@ Fecha_Hoy <- date('2018-05-31')
 
 IPC_Hoy <- 104.66
 
-tiempo_T = 12*15 
+tiempo_T = 12*15 #PREGUNTAR
 
 #-----------------------------------------------------------------------------
 
@@ -48,9 +87,9 @@ P_CCC <- list(c(0.09, -0.02,  0.05,    0, 96, 1),
 # de cuanto baja el indicador respectivo, y se denota d_2 la propoci?n para
 # el segundo periodo. Adem?s, el factor k.
 
-u2 = c(1.00001, 1.000005)
+u2 = c(u_col, u_dol)
 
-d2 = c(0.99999, 0.999995)
+d2 = c(d_col, d_dol)
 
 k = c(d2[1]/u2[1], d2[2]/u2[2]) 
 
@@ -68,24 +107,24 @@ k = c(d2[1]/u2[1], d2[2]/u2[2])
 
 # Detalle: El Bono Cero Cup?n en colones utiliza la curva Nelson-Siegel. Donde se obtiene el valor de $\delta(t)$: 
 
-Svensson <- function(tao, col_ude){
+Svensson <- function(tao, col_dol){
   
   if(tao == 0){
     precio = 1
     
   }else{
     
-    a = (1-exp(-tao/P_CCC[[col_ude]][5]))/
-      (tao/P_CCC[[col_ude]][5])
+    a = (1-exp(-tao/P_CCC[[col_dol]][5]))/
+      (tao/P_CCC[[col_dol]][5])
     
-    b = ((1-exp(-tao/P_CCC[[col_ude]][5]))/
-           (tao/P_CCC[[col_ude]][5])) - exp(-tao/P_CCC[[col_ude]][5])
+    b = ((1-exp(-tao/P_CCC[[col_dol]][5]))/
+           (tao/P_CCC[[col_dol]][5])) - exp(-tao/P_CCC[[col_dol]][5])
     
-    c = ((1-exp(-tao/P_CCC[[col_ude]][6]))/
-           (tao/P_CCC[[col_ude]][6])) - exp(-tao/P_CCC[[col_ude]][6])
+    c = ((1-exp(-tao/P_CCC[[col_dol]][6]))/
+           (tao/P_CCC[[col_dol]][6])) - exp(-tao/P_CCC[[col_dol]][6])
     
-    precio = exp(-(P_CCC[[col_ude]][1] + P_CCC[[col_ude]][2]*a + 
-                     P_CCC[[col_ude]][3]*b + P_CCC[[col_ude]][4]*c)*tao/12)
+    precio = exp(-(P_CCC[[col_dol]][1] + P_CCC[[col_dol]][2]*a + 
+                     P_CCC[[col_dol]][3]*b + P_CCC[[col_dol]][4]*c)*tao/12)
     
   }
   
@@ -95,9 +134,10 @@ Svensson <- function(tao, col_ude){
 ############################### PARA CALCULAR EL P(0,T) PARA LA CURVA EN DÓLARES #######################
 
 #Ubicacion del archivo de tasas spot----------------------------------------------------
-Dic<- setwd("~/RORAC SUPEN")
+Dic<- setwd("~/RORAC-SUPEN")
+
 #Periodo para el cual se quiere extraer el precio cero cupón -----------------
-periodo <-"2020-06-01"
+periodo <-"2020-03-01"
 #Nombre el archivo. se debe mantener el nombre de la descarga pues indica el periodo
 #disponible histórico-------------------------------------------------------------------
 archivo <- "tnc_18_22.xls"
@@ -139,14 +179,22 @@ tabla<-do.call("rbind", lista)
 tabla<-tabla %>% 
   filter(Periodo == periodo)
 
-Precio <- function(tao){
+Precio_dol <- function(tao){
   (1+tabla$rho[which(tabla$Maduracion==tao)])^-tao
 }
 
-
+Precio <- function(tao,col_dol){
+  if(col_dol==1){
+    P=Svensson(tao)
+  }
+  else{
+    P=Precio_dol(tao)
+  }
+  return(P)
+}
 #-----------------------------------------------------------------------------
 
-# Decrecimiento del ?rbol Binomial
+# Decrecimiento del Árbol Binomial
 
 
 # Objetivo: Encontrar el valor de d(t).    
@@ -162,68 +210,124 @@ d_t = function(t, p, k){
 
 #-----------------------------------------------------------------------------
 
-# C?lculo de Tasa Corta:
+# Cálculo de Tasa Corta:
 
 # Objetivo: Encontrar el valor de r_t.    
 
-# Par?metros que recibe: Distancia de tiempo t que se representa por tao, 
-# si se quiere obtener la tasa corta de los colones o de los d?lares,
+# Parámetros que recibe: Distancia de tiempo t que se representa por tao, 
+# si se quiere obtener la tasa corta de los colones o de los dólares,
 # cantidad de veces que ha subido hasta ese momento t y la probabidad p.
 
 # Devuelve: El resultado obtenido al realizar lo siguiente: 
 
-Tasa_Corta_t = function(tao, col_ude, cant_sub, p){
+Tasa_Corta_t = function(tao, col_dol, cant_sub, p){
+    # Se obtiene el precio de acuerdo a la moneda
+  P_0_t = Precio(tao,col_dol)
+  P_0_T = Precio(tao + 1,col_dol)
+
   
-  # Se obtiene el precio de acuerdo a las curvas Nelson-Siegel-Svensson
-  P_0_t = Svensson(tao, col_ude)
-  P_0_T = Svensson(tao + 1, col_ude)
-  
-  # Se obtiene la tasa corta mediante la f?rmula.
-  r_t = log(P_0_t/P_0_T) - log(d_t(tao + 1, p, k[col_ude])) + cant_sub*log(k[col_ude])
+  # Se obtiene la tasa corta mediante la fórmula.
+  r_t = log(P_0_t/P_0_T) - log(d_t(tao + 1, p, k[col_dol])) + cant_sub*log(k[col_dol])
   
   return(r_t)  
 }
 
 #-----------------------------------------------------------------------------
 
-# ?rbol Ho-Lee
+# Árbol Ho-Lee
 
-# Objetivo: Encontrar el valor del ?rbol Ho Lee de descuentos D(0, t).  
+# Objetivo: Encontrar el valor del árbol Ho Lee de descuentos D(0, t).  
 
-# Par?metros que recibe: El indicador si se quiere obtener la tasa corta 
-# de los colones o de los d?lares.
+# Parámetros que recibe: El indicador si se quiere obtener la tasa corta 
+# de los colones o de los dólares.
 
-# Devuelve: El vector de descuentos D(0,t), con t = 0,1,\dots,T.
+# Devuelve: El vector de descuentos D(0,t), con t = 0,1,...,T.
 
-Arbol_Ho_Lee_D = function(col_ude){   
+Arbol_Ho_Lee_D = function(col_dol){   
   
-  # Dado el tipo de ?rbol crea la probabilidad
-  p = (1 - d2[col_ude])/(u2[col_ude] - d2[col_ude])
+  # Dado el tipo de árbol crea la probabilidad
+  p = (1 - d2[col_dol])/(u2[col_dol] - d2[col_dol])
   
   # Obtiene la tasa corta inicial
-  r_0 = Tasa_Corta_t(0, col_ude, 0, p)    
+  r_0 = Tasa_Corta_t(6, col_dol, 0, p)    #OJO: PREGUNTAR A VÍQUEZ: 0 EN VEZ DE 6
   
   # Forma la trayectoria aleatoria 179 veces
-  trayectoria = rbernoulli(tiempo_T - 1, p) 
+  trayectoria = rbernoulli(tiempo_T - 1-(6), p) #OJO: QUITAR EL -6
   
   # Obtiene la cantidad de subidas acumuladas.
   vect_cant_sub = cumsum(trayectoria)
   
-  # Aplica la funci?n de la tasa corta para cada instante.   
-  vect_r_t = Vectorize(Tasa_Corta_t)(1:(tiempo_T - 1), col_ude, vect_cant_sub, p)
+  # Aplica la funciÓn de la tasa corta para cada instante.   
+  vect_r_t = Vectorize(Tasa_Corta_t)(7:(tiempo_T - 1), col_dol, vect_cant_sub, p) #OJO: CAMBIAR EL 7 POR 1
   
   # Obtiene el vector de los descuentos D(0,t)
-  vect_D_0_T = c(exp(-r_0), exp(-cumsum(vect_r_t))*Svensson(1, col_ude))
+  vect_D_0_T = c(exp(-r_0), exp(-cumsum(vect_r_t))*Precio(7, col_dol)) # OJO: CAMBIAR 7 POR 1
+                                                                      # PREGUNTAR A VÍQUEZ: Por qué descontar con P(0,1) y no con exp(-r0)
   
   return(vect_D_0_T)
 }
 
 #-----------------------------------------------------------------------------
 
-# Prueba del ?rbol Binomial Ho-Lee
+# Prueba del Árbol Binomial Ho-Lee
 
 # Colones:
 Arbol_Ho_Lee_D(1)
 
-# D?lares
-Arbol_Ho_Lee_D(1)
+# Dólares
+Arbol_Ho_Lee_D(2)
+
+
+###################### Simulaciones ################################
+Simulaciones<-matrix(nrow = tiempo_T-6,ncol = 10000) ### BORRAR EL -6
+
+for(j in 1:10000){
+  Simulaciones[,j]<-Arbol_Ho_Lee_D(2)
+}
+ 
+
+Simulaciones_promedio<-apply(X = Simulaciones,MARGIN = 1,FUN = mean)
+Simulaciones_ordered<-apply(X = Simulaciones,MARGIN = 1,FUN = sort)
+Simulaciones_VAR<-apply(X = Simulaciones_ordered,MARGIN = 2,FUN = function(x){quantile(x = x,probs=c(0.05,0.95))})
+Simulaciones500<-Simulaciones_ordered[1:500,]
+Simulaciones9500<-Simulaciones_ordered[9501:10000,]
+CVAR_5<-apply(Simulaciones500, 2, mean)
+CVAR_95<-apply(Simulaciones9500, 2, mean)
+tabla<-tabla %>% mutate(Precio=(1+rho)^-Maduracion)
+
+Fecha<-seq.Date(from = ymd(as.Date(periodo) %m+% months(6)),
+                by = "month",
+                length.out = length(Simulaciones_promedio))
+
+df<-data.frame(Fecha=Fecha,Curva=tabla$Precio[1:length(Simulaciones_promedio)],Simulaciones_prom=Simulaciones_promedio,
+               CVAR_5=CVAR_5,CVAR_95=CVAR_95)
+
+
+don <- xts(x = df$rho, order.by = data$Fecha)
+dygraph(df, main = "Comparación entre curva precio cero cupón y el modelo Ho-Lee") %>%
+  dyAxis("Fecha", drawGrid = FALSE) %>%
+  dySeries(c("CVAR_5", "Simulaciones_prom", "CVAR_95"), label = "Fecha") %>%
+  dyOptions(colors = RColorBrewer::brewer.pal(3, "Set1"))
+
+
+Curva <- zoo(df$Curva, df$Fecha)
+Sim_prom <- zoo(df$Simulaciones_prom, df$Fecha)
+CVAR5 <- zoo(df$CVAR_5, df$Fecha)
+CVAR95 <- zoo(df$CVAR_95, df$Fecha)
+
+Data <- cbind(Curva, Sim_prom,CVAR5,CVAR95)
+
+dygraph(Data, main = "Comparación Curva Precio Cero Cupón y Modelo Ho-Lee") %>% 
+  dyOptions(drawGrid = F) %>%
+  dyAxis("y", label = "Ho-Lee", independentTicks = TRUE) %>%
+   dySeries("Sim_prom", axis=('y')) %>%
+  dySeries("CVAR5", axis=('y')) %>%
+  dySeries("CVAR95", axis=('y'), stepPlot = T, fillGraph = T)
+
+lungDeaths <- cbind(ldeaths, mdeaths, fdeaths)
+dygraph(Data, main = "Deaths from Lung Disease (UK)") %>%
+  dyOptions(colors = RColorBrewer::brewer.pal(3, "Set2"))
+
+lungDeaths <- cbind(ldeaths, mdeaths, fdeaths)
+dygraph(lungDeaths, main = "Deaths from Lung Disease (UK)") %>%
+  dyOptions(colors = RColorBrewer::brewer.pal(3, "Set2"))
