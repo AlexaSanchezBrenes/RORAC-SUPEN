@@ -565,7 +565,7 @@ tic()
 # Realizamos la optimización con función objetivo de Ponderación:
 prueba.SA.pon.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (20/7 + 5*52)/2, (lim.n+5*52)/2),
                              fn = FuncionObjetivo.SA.Pon,
-                             lower = c(-2/100+TRI.larga, -5, -5, 20/7, 5*12+1e-9),
+                             lower = c(-2/100+TRI.larga, -5, -5, 20/7, 5*52+1e-9),
                              upper = c(2/100+TRI.larga, 5, 5, 5*52, lim.n),
                              control = list(maxit = 1000,s = 20,w = -0.1832,c.p =0.5287,c.g = 3.1913))
 toc()
@@ -703,10 +703,10 @@ graf.cons.b
 alpha <- 2.25
 
 # Realizamos la optimización con función objetivo de Ponderación:
-prueba.SA.pon.pso.alpha <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (2/3 + 5*12)/2, (lim.n+5*12)/2),
+prueba.SA.pon.pso.alpha <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (20/7 + 5*52)/2, (lim.n+5*52)/2),
                                    fn = FuncionObjetivo.SA.Pon,
-                                   lower = c(-2/100+TRI.larga, -5, -5, 2/3, 5*12+1e-9),
-                                   upper = c(2/100+TRI.larga, 5, 5, 5*12, lim.n),
+                                   lower = c(-2/100+TRI.larga, -5, -5, 20/7, 5*52+1e-9),
+                                   upper = c(2/100+TRI.larga, 5, 5, 5*52, lim.n),
                                    control = list(maxit = 1000,s = 20,w = -0.1832,c.p =0.5287,c.g = 3.1913))
 
 

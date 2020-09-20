@@ -699,7 +699,7 @@ graf.cons.a
 graf.cons.b
 
 # Cambiamos el Alpha:
-alpha <- 1.75
+alpha <- 1.4
   
 # Realizamos la optimización con función objetivo de Ponderación:
 prueba.SA.pon.pso.alpha <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (2/3 + 5*12)/2, (lim.n+5*12)/2),
@@ -804,8 +804,8 @@ for (i in 1:length(Lista.Bonos)) {
   Fecha.Final <- Fecha.Inicial+years(5)
   
   # Definimos la serie de tiempo:
-  curva.NS.rho <- Curva.NS(prueba.NS.pon.pso$par,Fecha.Inicial,Fecha.Final)
-  curva.SA.rho <- Curva.SA(prueba.SA.pon.pso$par,Fecha.Inicial,Fecha.Final)
+  curva.NS.rho <- Curva.NS(prueba.NS.rep.pso$par,Fecha.Inicial,Fecha.Final)
+  curva.SA.rho <- Curva.SA(prueba.SA.pon.pso.alpha$par,Fecha.Inicial,Fecha.Final)
   
   # Grafico de las curvas más reciente:
   graf.rho <- dygraph(curva.NS.rho,
