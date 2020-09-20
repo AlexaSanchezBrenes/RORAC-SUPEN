@@ -31,7 +31,8 @@ options(stringsAsFactors = FALSE)
 #---------------------------------------- Parámetros Generales:
 
 # Dirrección de los datos:
-Dic <- "C:/Users/Laura/Documents/RORAC-SUPEN/Boletas"
+#Dic <- "C:/Users/Laura/Documents/RORAC-SUPEN/Boletas"
+Dic <- "C:/Users/EQUIPO/Desktop/Estudios/RORAC-SUPEN/Boletas"
 
 # Vector de tasas cortas mensuales TRI:
 TRI.corta <- c(1.25,1.28,1.25,1.26,0.76,0.75)/100
@@ -124,11 +125,12 @@ Lista.Bonos <- bind_rows(lista.df.boletas()) %>%
 
 #---------------------------------------- Definición de la Función Objetivo:
 
-# Función para calcular la diferencia de fechas en meses:
+# Función para calcular la diferencia de fechas en semanas:
 Tau <- function(t, Te) {
   ed <- as.POSIXlt(Te)
   sd <- as.POSIXlt(t)
-  as.double(12 * (ed$year - sd$year) + (ed$mon - sd$mon) + day(ed)/days_in_month(ed) - day(sd)/days_in_month(sd))
+  dif <- as.double(difftime(ed,sd,units="weeks"))
+  return(dif)
 }
 
 # Función para calcular los tiempos de cada cero cupon en cuponado:
@@ -170,8 +172,24 @@ FuncionObjetivo.NS.Max <- function(X){
     mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
     ungroup()
   
+  # Se crean las fechas de la curva:
+  fecha.inicial <- as.Date(Lista.Bonos[[i]]$Fecha.de.Operacion[1])-day(Lista.Bonos[[i]]$Fecha.de.Operacion[1])+1
+  fecha.final <- fecha.inicial+years(5)
+  fechas <- seq.Date(from = as.Date(fecha.inicial),
+                     to = as.Date(fecha.final),
+                     by = "days")
+  
+  # Se generan las observaciones:
+  datos.curva <- data.frame(fechas.iniciales = rep(fecha.inicial,length(fechas)),
+                            fechas.finales = fechas) %>% 
+    mutate(Tau = Tau(fechas.iniciales, fechas.finales)) %>% 
+    mutate(NelsonSiegel = B0 + B1 * ((1-exp(-Tau/n1))/(Tau/n1)) + 
+             B2 * (((1-exp(-Tau/n1))/(Tau/n1)) - exp(-Tau/n1))) %>% 
+    mutate(rho = exp(NelsonSiegel)-1) 
+  datos.curva[1,5] <- TRI.corta[[i]]
+  
   # Verificamos si hay tasas negativas:
-  TasaNegativa <- sum((exp(DiferenciasPrecio.Max$NelsonSiegel)-1)<0)
+  TasaNegativa <- sum(datos.curva$rho<0)
   
   DiferenciasPrecio.Max <- DiferenciasPrecio.Max %>% 
     select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Fecha.de.Vencimiento) %>%
@@ -204,8 +222,24 @@ FuncionObjetivo.NS.Pon <- function(X){
     mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
     ungroup() 
   
+  # Se crean las fechas de la curva:
+  fecha.inicial <- as.Date(Lista.Bonos[[i]]$Fecha.de.Operacion[1])-day(Lista.Bonos[[i]]$Fecha.de.Operacion[1])+1
+  fecha.final <- fecha.inicial+years(5)
+  fechas <- seq.Date(from = as.Date(fecha.inicial),
+                     to = as.Date(fecha.final),
+                     by = "days")
+  
+  # Se generan las observaciones:
+  datos.curva <- data.frame(fechas.iniciales = rep(fecha.inicial,length(fechas)),
+                            fechas.finales = fechas) %>% 
+    mutate(Tau = Tau(fechas.iniciales, fechas.finales)) %>% 
+    mutate(NelsonSiegel = B0 + B1 * ((1-exp(-Tau/n1))/(Tau/n1)) + 
+             B2 * (((1-exp(-Tau/n1))/(Tau/n1)) - exp(-Tau/n1))) %>% 
+    mutate(rho = exp(NelsonSiegel)-1) 
+  datos.curva[1,5] <- TRI.corta[[i]]
+  
   # Verificamos si hay tasas negativas:
-  TasaNegativa <- sum((exp(DiferenciasPrecio.Pon$NelsonSiegel)-1)<0)
+  TasaNegativa <- sum(datos.curva$rho<0)
   
   DiferenciasPrecio.Pon <- DiferenciasPrecio.Pon %>%  
     select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Fecha.de.Vencimiento, Diff.semana) %>%
@@ -240,8 +274,24 @@ FuncionObjetivo.NS.Rep <- function(X){
     mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
     ungroup()
   
+  # Se crean las fechas de la curva:
+  fecha.inicial <- as.Date(Lista.Bonos[[i]]$Fecha.de.Operacion[1])-day(Lista.Bonos[[i]]$Fecha.de.Operacion[1])+1
+  fecha.final <- fecha.inicial+years(5)
+  fechas <- seq.Date(from = as.Date(fecha.inicial),
+                     to = as.Date(fecha.final),
+                     by = "days")
+  
+  # Se generan las observaciones:
+  datos.curva <- data.frame(fechas.iniciales = rep(fecha.inicial,length(fechas)),
+                            fechas.finales = fechas) %>% 
+    mutate(Tau = Tau(fechas.iniciales, fechas.finales)) %>% 
+    mutate(NelsonSiegel = B0 + B1 * ((1-exp(-Tau/n1))/(Tau/n1)) + 
+             B2 * (((1-exp(-Tau/n1))/(Tau/n1)) - exp(-Tau/n1))) %>% 
+    mutate(rho = exp(NelsonSiegel)-1) 
+  datos.curva[1,5] <- TRI.corta[[i]]
+  
   # Verificamos si hay tasas negativas:
-  TasaNegativa <- sum((exp(DiferenciasPrecio.Rep$NelsonSiegel)-1)<0)
+  TasaNegativa <- sum(datos.curva$rho<0)
   
   DiferenciasPrecio.Rep <- DiferenciasPrecio.Rep %>% 
     select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Fecha.de.Vencimiento) %>%
@@ -283,8 +333,26 @@ FuncionObjetivo.SA.Max <- function(X){
     mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
     ungroup()
   
+  # Se crean las fechas de la curva:
+  fecha.inicial <- as.Date(Lista.Bonos[[i]]$Fecha.de.Operacion[1])-day(Lista.Bonos[[i]]$Fecha.de.Operacion[1])+1
+  fecha.final <- fecha.inicial+years(5)
+  fechas <- seq.Date(from = as.Date(fecha.inicial),
+                     to = as.Date(fecha.final),
+                     by = "days")
+  
+  # Se generan las observaciones:
+  datos.curva <- data.frame(fechas.iniciales = rep(fecha.inicial,length(fechas)),
+                            fechas.finales = fechas) %>% 
+    mutate(Tau = Tau(fechas.iniciales, fechas.finales)) %>% 
+    mutate(SvenssonAlterada = B0 * Tau +
+             B1 * ((1-exp(-Tau/n1))*n1) + 
+             B2 * (1-(Tau/n1+1)*exp(-Tau/n1))*n1^2 +
+             ((B3*n2*n1)/(n1-n2)) * (((1-(Tau/n1+1)*exp(-Tau/n1))*n1^2) - ((1-(Tau/n2+1)*exp(-Tau/n2))*n2^2))) %>% 
+    mutate(rho = exp(SvenssonAlterada/Tau)-1) 
+  datos.curva[1,5] <- TRI.corta[[i]]
+  
   # Verificamos si hay tasas negativas:
-  TasaNegativa <- sum((exp(DiferenciasPrecio.Max$SvenssonAlterada/DiferenciasPrecio.Max$Tau)-1)<0)
+  TasaNegativa <- sum(datos.curva$rho<0)
   
   DiferenciasPrecio.Max <- DiferenciasPrecio.Max %>% 
     select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Fecha.de.Vencimiento) %>%
@@ -301,7 +369,7 @@ FuncionObjetivo.SA.Max <- function(X){
 
 # Función que debe ser minimizada para estimar parámetros usando ponderación:
 FuncionObjetivo.SA.Pon <- function(X){
- 
+  
   # Redefinimos parámetros:
   B0 <- X[1]
   B1 <- TRI.corta[i]-B0
@@ -322,8 +390,26 @@ FuncionObjetivo.SA.Pon <- function(X){
     mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
     ungroup() 
   
+  # Se crean las fechas de la curva:
+  fecha.inicial <- as.Date(Lista.Bonos[[i]]$Fecha.de.Operacion[1])-day(Lista.Bonos[[i]]$Fecha.de.Operacion[1])+1
+  fecha.final <- fecha.inicial+years(5)
+  fechas <- seq.Date(from = as.Date(fecha.inicial),
+                     to = as.Date(fecha.final),
+                     by = "days")
+  
+  # Se generan las observaciones:
+  datos.curva <- data.frame(fechas.iniciales = rep(fecha.inicial,length(fechas)),
+                            fechas.finales = fechas) %>% 
+    mutate(Tau = Tau(fechas.iniciales, fechas.finales)) %>% 
+    mutate(SvenssonAlterada = B0 * Tau +
+             B1 * ((1-exp(-Tau/n1))*n1) + 
+             B2 * (1-(Tau/n1+1)*exp(-Tau/n1))*n1^2 +
+             ((B3*n2*n1)/(n1-n2)) * (((1-(Tau/n1+1)*exp(-Tau/n1))*n1^2) - ((1-(Tau/n2+1)*exp(-Tau/n2))*n2^2))) %>% 
+    mutate(rho = exp(SvenssonAlterada/Tau)-1) 
+  datos.curva[1,5] <- TRI.corta[[i]]
+  
   # Verificamos si hay tasas negativas:
-  TasaNegativa <- sum((exp(DiferenciasPrecio.Pon$SvenssonAlterada/DiferenciasPrecio.Pon$Tau)-1)<0)
+  TasaNegativa <- sum(datos.curva$rho<0)
   
   DiferenciasPrecio.Pon <- DiferenciasPrecio.Pon %>% 
     select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Fecha.de.Vencimiento, Diff.semana) %>%
@@ -363,8 +449,26 @@ FuncionObjetivo.SA.Rep <- function(X){
     mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
     ungroup() 
   
+  # Se crean las fechas de la curva:
+  fecha.inicial <- as.Date(Lista.Bonos[[i]]$Fecha.de.Operacion[1])-day(Lista.Bonos[[i]]$Fecha.de.Operacion[1])+1
+  fecha.final <- fecha.inicial+years(5)
+  fechas <- seq.Date(from = as.Date(fecha.inicial),
+                     to = as.Date(fecha.final),
+                     by = "days")
+  
+  # Se generan las observaciones:
+  datos.curva <- data.frame(fechas.iniciales = rep(fecha.inicial,length(fechas)),
+                            fechas.finales = fechas) %>% 
+    mutate(Tau = Tau(fechas.iniciales, fechas.finales)) %>% 
+    mutate(SvenssonAlterada = B0 * Tau +
+             B1 * ((1-exp(-Tau/n1))*n1) + 
+             B2 * (1-(Tau/n1+1)*exp(-Tau/n1))*n1^2 +
+             ((B3*n2*n1)/(n1-n2)) * (((1-(Tau/n1+1)*exp(-Tau/n1))*n1^2) - ((1-(Tau/n2+1)*exp(-Tau/n2))*n2^2))) %>% 
+    mutate(rho = exp(SvenssonAlterada/Tau)-1) 
+  datos.curva[1,5] <- TRI.corta[[i]]
+  
   # Verificamos si hay tasas negativas:
-  TasaNegativa <- sum((exp(DiferenciasPrecio.Rep$SvenssonAlterada/DiferenciasPrecio.Rep$Tau)-1)<0)
+  TasaNegativa <- sum(datos.curva$rho<0)
   
   DiferenciasPrecio.Rep <- DiferenciasPrecio.Rep %>% 
     select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Fecha.de.Vencimiento) %>%
@@ -427,50 +531,50 @@ Beta3Inicial <- 0
 
 tic()
 # Realizamos la optimización con función objetivo de Máximo:
-prueba.NS.max.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, lim.n/2),
+prueba.NS.max.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, (lim.n+20/7)/2),
                              fn = FuncionObjetivo.NS.Max,
-                             lower = c(-2/100+TRI.larga, -5, 2/3),
+                             lower = c(-2/100+TRI.larga, -5, 20/7),
                              upper = c(2/100+TRI.larga, 5, lim.n),
                              control = list(maxit = 1000,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
 toc()
 tic()
 # Realizamos la optimización con función objetivo de Ponderación:
-prueba.NS.pon.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, lim.n/2),
+prueba.NS.pon.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, (lim.n+20/7)/2),
                              fn = FuncionObjetivo.NS.Pon,
-                             lower = c(-2/100+TRI.larga, -5, 2/3),
+                             lower = c(-2/100+TRI.larga, -5, 20/7),
                              upper = c(2/100+TRI.larga, 5, lim.n),
                              control = list(maxit = 1000,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
 toc()
 tic()
 # Realizamos la optimización con función objetivo de Máximo:
-prueba.NS.rep.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, lim.n/2),
+prueba.NS.rep.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, (lim.n+20/7)/2),
                              fn = FuncionObjetivo.NS.Rep,
-                             lower = c(-2/100+TRI.larga, -5, 2/30),
+                             lower = c(-2/100+TRI.larga, -5, 20/7),
                              upper = c(2/100+TRI.larga, 5, lim.n),
                              control = list(maxit = 1000,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
 toc()
 tic()
 # Realizamos la optimización con función objetivo de Máximo:
-prueba.SA.max.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (2/3 + 5*12)/2, (lim.n+5*12)/2),
+prueba.SA.max.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (20/7 + 5*52)/2, (lim.n+5*52)/2),
                              fn = FuncionObjetivo.SA.Pon,
-                             lower = c(-2/100+TRI.larga, -5, -5, 2/3, 5*12+1e-9),
-                             upper = c(2/100+TRI.larga, 5, 5, 5*12, lim.n),
+                             lower = c(-2/100+TRI.larga, -5, -5, 20/7, 5*52+1e-9),
+                             upper = c(2/100+TRI.larga, 5, 5, 5*52, lim.n),
                              control = list(maxit = 1000,s = 20,w = -0.1832,c.p =0.5287,c.g = 3.1913))
 toc()
 tic()
 # Realizamos la optimización con función objetivo de Ponderación:
-prueba.SA.pon.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (2/3 + 5*12)/2, (lim.n+5*12)/2),
+prueba.SA.pon.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (20/7 + 5*52)/2, (lim.n+5*52)/2),
                              fn = FuncionObjetivo.SA.Pon,
-                             lower = c(-2/100+TRI.larga, -5, -5, 2/3, 5*12+1e-9),
-                             upper = c(2/100+TRI.larga, 5, 5, 5*12, lim.n),
+                             lower = c(-2/100+TRI.larga, -5, -5, 20/7, 5*12+1e-9),
+                             upper = c(2/100+TRI.larga, 5, 5, 5*52, lim.n),
                              control = list(maxit = 1000,s = 20,w = -0.1832,c.p =0.5287,c.g = 3.1913))
 toc()
 tic()
 # Realizamos la optimización con función objetivo de Ponderación:
-prueba.SA.rep.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (2/3 + 5*12)/2, (lim.n+5*12)/2),
+prueba.SA.rep.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (20/7 + 5*52)/2, (lim.n+5*52)/2),
                              fn = FuncionObjetivo.SA.Rep,
-                             lower = c(-2/100+TRI.larga, -5, -5, 2/3, 5*12+1e-9),
-                             upper = c(2/100+TRI.larga, 5, 5, 5*12, lim.n),
+                             lower = c(-2/100+TRI.larga, -5, -5, 20/7, 5*52+1e-9),
+                             upper = c(2/100+TRI.larga, 5, 5, 5*52, lim.n),
                              control = list(maxit = 1000,s = 20,w = -0.1832,c.p =0.5287,c.g = 3.1913))
 toc()
 
@@ -553,10 +657,10 @@ Calibrar.error <- function(alpha){
   # Se calculan los errores semanales:
   Errores.Semanales <- Tau.aplicado %>% 
     mutate(monto = ifelse(Fecha.Pago == Fecha.de.Vencimiento, 1+Tasa.facial, Tasa.facial), 
-         SvenssonAlterada = B0 * Tau +
-           B1 * ((1-exp(-Tau/n1))*n1) + 
-           B2 * (1-(Tau/n1+1)*exp(-Tau/n1))*n1^2 +
-           ((B3*n2*n1)/(n1-n2)) * (((1-(Tau/n1+1)*exp(-Tau/n1))*n1^2) - ((1-(Tau/n2+1)*exp(-Tau/n2))*n2^2))) %>%
+           SvenssonAlterada = B0 * Tau +
+             B1 * ((1-exp(-Tau/n1))*n1) + 
+             B2 * (1-(Tau/n1+1)*exp(-Tau/n1))*n1^2 +
+             ((B3*n2*n1)/(n1-n2)) * (((1-(Tau/n1+1)*exp(-Tau/n1))*n1^2) - ((1-(Tau/n2+1)*exp(-Tau/n2))*n2^2))) %>%
     mutate(FactorDesc = exp(-SvenssonAlterada)) %>% 
     group_by(Numero.de.Contrato.Largo) %>%
     mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
@@ -576,14 +680,35 @@ Calibrar.error <- function(alpha){
 }
 
 # Se calculan para varios alpha de 0 a 15:
-Data.Calibrado <- bind_rows(sapply(seq(0,11,0.05),Calibrar.error)) %>% mutate(Diff.semana = as.factor(Diff.semana))
+Data.Calibrado <- bind_rows(sapply(seq(0,11,0.05),Calibrar.error)) %>% mutate(Diff.semana = as.factor(Diff.semana)) %>% 
+  group_by(alpha) %>% mutate(error.sumado =sum(Error)) %>% ungroup()
 
 # Gráfico sobre errores por semana:
-ggplot(data = Data.Calibrado, aes(x = alpha, y = Error, color = Diff.semana)) +
-  geom_line(size = 2) +
-  theme_light() + ylim(0,0.0025) +
+graf.cons.a <- ggplot(data = Data.Calibrado, aes(x = alpha, y = Error, color = Diff.semana)) +
+  geom_line(size = 2) + ylab("Error Agregado por Semana") +
+  theme_light() +
   labs(title = "Constante de Ponderación", color = "Semana de Operación:")
-  
+
+graf.cons.b <- ggplot(data = Data.Calibrado %>% select(error.sumado,alpha) %>% unique(), aes(x = alpha, y = error.sumado)) +
+  geom_line(size = 2) + ylab("Error Total") +
+  theme_light() +
+  labs(title = "Constante de Ponderación")
+
+
+# Visualizamos:
+graf.cons.a
+graf.cons.b
+
+# Cambiamos el Alpha:
+alpha <- 2.25
+
+# Realizamos la optimización con función objetivo de Ponderación:
+prueba.SA.pon.pso.alpha <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (2/3 + 5*12)/2, (lim.n+5*12)/2),
+                                   fn = FuncionObjetivo.SA.Pon,
+                                   lower = c(-2/100+TRI.larga, -5, -5, 2/3, 5*12+1e-9),
+                                   upper = c(2/100+TRI.larga, 5, 5, 5*12, lim.n),
+                                   control = list(maxit = 1000,s = 20,w = -0.1832,c.p =0.5287,c.g = 3.1913))
+
 
 #---------------------------------------- Creación de la Curva para cada Mes:
 
@@ -680,7 +805,7 @@ for (i in 1:length(Lista.Bonos)) {
   Fecha.Final <- Fecha.Inicial+years(5)
   
   # Definimos la serie de tiempo:
-  curva.rho <- Curva.SA(prueba.SA.pon.pso$par,Fecha.Inicial,Fecha.Final)
+  curva.rho <- Curva.NS(prueba.NS.max.pso$par,Fecha.Inicial,Fecha.Final)
   
   # Grafico de las curvas más reciente:
   graf.rho <- dygraph(curva.rho,
