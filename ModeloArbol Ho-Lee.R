@@ -37,10 +37,10 @@ d_col<-1-sqrt(varianza_mensual_col)
 
 ################## Estimación de parámetros de Ho-Lee - Dólares #########################
 # Tasas overnight: Para calcular varianza y r0
-TRI_dolares1 <- read.table("TRI dolares.csv", sep = ",",
-                          dec = ".", header =  FALSE)
-TRI_dolares2 <- read.table("TRI dolares2.csv", sep = ",",
-                           dec = ".", header =  FALSE)
+#TRI_dolares1 <- read.table("TRI dolares.csv", sep = ",",
+#                          dec = ".", header =  FALSE)
+#TRI_dolares2 <- read.table("TRI dolares2.csv", sep = ",",
+#                           dec = ".", header =  FALSE)
 
 Overnight <- read.csv("overnightrate.csv",sep=',',dec='.',header = F)
 Overnight1 <- read.csv("overnightrate (1).csv",sep=',',dec='.',header = F)
@@ -50,24 +50,15 @@ Overnight4 <- read.csv("overnightrate (4).csv",sep=',',dec='.',header = F)
 Overnight5 <- read.csv("overnightrate (5).csv",sep=',',dec='.',header = F)
 Overnight6 <- read.csv("overnightrate (6).csv",sep=',',dec='.',header = F)
 Overnight7 <- read.csv("overnightrate (7).csv",sep=',',dec='.',header = F)
-=======
 
-TRI_dolares_2<- rbind(TRI_dolares2, TRI_dolares1)
-colnames(TRI_dolares) <- c("Fecha Emision", "Tasa", "Fecha Vencimiento")
->>>>>>> 6dc8bc0715b47b8bffe9b46067e2e251d7cdeb89
+
 
 Overnight<-rbind(Overnight,Overnight1,Overnight2,Overnight3,Overnight4,Overnight5,Overnight6,Overnight7)
 Overnight <- Overnight[,-3]
 colnames(Overnight)=c('Fecha','Tasa')
 
-<<<<<<< HEAD
 varianza_mensual_dol<-30*var(Overnight$Tasa) #PREGUNTAR
-=======
-secuencia<-seq(from=1,to=nrow(TRI_dolares),by=7)
-TRI_dolares<- TRI_dolares[secuencia,]
-TRI_dolares<-TRI_dolares %>% mutate(Efectiva=log(1+Tasa))
-varianza_mensual_dol<-4*var(TRI_dolares$Efectiva)
->>>>>>> 6dc8bc0715b47b8bffe9b46067e2e251d7cdeb89
+
 
 u_dol<-1+sqrt(varianza_mensual_dol) 
 d_dol<-1-sqrt(varianza_mensual_dol)
