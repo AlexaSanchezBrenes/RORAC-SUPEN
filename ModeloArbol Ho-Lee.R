@@ -42,20 +42,77 @@ TRI_dolares1 <- read.table("TRI dolares.csv", sep = ",",
 TRI_dolares2 <- read.table("TRI dolares2.csv", sep = ",",
                            dec = ".", header =  FALSE)
 
+Overnight <- read.csv("overnightrate.csv",sep=',',dec='.',header = F)
+Overnight1 <- read.csv("overnightrate (1).csv",sep=',',dec='.',header = F)
+Overnight2 <- read.csv("overnightrate (2).csv",sep=',',dec='.',header = F)
+Overnight3 <- read.csv("overnightrate (3).csv",sep=',',dec='.',header = F)
+Overnight4 <- read.csv("overnightrate (4).csv",sep=',',dec='.',header = F)
+Overnight5 <- read.csv("overnightrate (5).csv",sep=',',dec='.',header = F)
+Overnight6 <- read.csv("overnightrate (6).csv",sep=',',dec='.',header = F)
+Overnight7 <- read.csv("overnightrate (7).csv",sep=',',dec='.',header = F)
+=======
 
 TRI_dolares_2<- rbind(TRI_dolares2, TRI_dolares1)
 colnames(TRI_dolares) <- c("Fecha Emision", "Tasa", "Fecha Vencimiento")
+>>>>>>> 6dc8bc0715b47b8bffe9b46067e2e251d7cdeb89
 
+Overnight<-rbind(Overnight,Overnight1,Overnight2,Overnight3,Overnight4,Overnight5,Overnight6,Overnight7)
+Overnight <- Overnight[,-3]
+colnames(Overnight)=c('Fecha','Tasa')
 
+<<<<<<< HEAD
+varianza_mensual_dol<-30*var(Overnight$Tasa) #PREGUNTAR
+=======
 secuencia<-seq(from=1,to=nrow(TRI_dolares),by=7)
 TRI_dolares<- TRI_dolares[secuencia,]
 TRI_dolares<-TRI_dolares %>% mutate(Efectiva=log(1+Tasa))
 varianza_mensual_dol<-4*var(TRI_dolares$Efectiva)
+>>>>>>> 6dc8bc0715b47b8bffe9b46067e2e251d7cdeb89
 
 u_dol<-1+sqrt(varianza_mensual_dol) 
 d_dol<-1-sqrt(varianza_mensual_dol)
 
+#################### GRÁFICOS OVERNIGHT ###############################
 
+r0 <- read.table("overnightrate (7).csv", sep = ",",
+                 dec = ".", header =  FALSE) %>% 
+  dplyr::select(V1, V2) %>% 
+  rename(Fecha  = V1, Tasa = V2) 
+#Gráfico------------------------------------------------------------
+library(xts)
+library(dygraphs)
+Fecha = strptime(r0$Fecha, "%m/%d/%Y")
+series <- xts(x = r0$Tasa, order.by = Fecha)
+dygraph(series, main = "Tasa 'overnight' ($)") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) 
+
+marzo <- r0 %>% 
+  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
+  filter(month(Fecha) == 03 & year(Fecha) == 2020 )  
+series <- xts(x = marzo$Tasa, order.by = marzo$Fecha)
+dygraph(series, main = "'Overnight' marzo($)") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) 
+
+abril <- r0 %>% 
+  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
+  filter(month(Fecha) == 04 & year(Fecha) == 2020 )  
+series <- xts(x = abril$Tasa, order.by = abril$Fecha)
+dygraph(series, main = "'Overnight' abril($)") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) 
+
+mayo <- r0 %>% 
+  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
+  filter(month(Fecha) == 05 & year(Fecha) == 2020 )  
+series <- xts(x = mayo$Tasa, order.by = mayo$Fecha)
+dygraph(series, main = "'Overnight' mayo($)") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) 
+
+junio <- r0 %>% 
+  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
+  filter(month(Fecha) == 06 & year(Fecha) == 2020 )  
+series <- xts(x = junio$Tasa, order.by = junio$Fecha)
+dygraph(series, main = "'Overnight' junio($)") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) 
 
 # El presente código es de uso exclusivo como requisito en la oferta de la
 # consultor?a solicitada por la Superintendencia de Pensiones (SUPEN) para la 
@@ -143,7 +200,7 @@ Svensson <- function(tao, col_dol){
 Dic<- setwd("~/RORAC-SUPEN")
 
 #Periodo para el cual se quiere extraer el precio cero cupón -----------------
-periodo <-"2020-03-01"
+periodo <-"2020-06-01"
 #Nombre el archivo. se debe mantener el nombre de la descarga pues indica el periodo
 #disponible histórico-------------------------------------------------------------------
 archivo <- "tnc_18_22.xls"
@@ -255,19 +312,19 @@ Arbol_Ho_Lee_D = function(col_dol){
   p = (1 - d2[col_dol])/(u2[col_dol] - d2[col_dol])
   
   # Obtiene la tasa corta inicial
-  r_0 = Tasa_Corta_t(6, col_dol, 0, p)    #OJO: PREGUNTAR A VÍQUEZ: 0 EN VEZ DE 6
+  r_0 = Tasa_Corta_t(0, col_dol, 0, p)  
   
   # Forma la trayectoria aleatoria 179 veces
-  trayectoria = rbernoulli(tiempo_T - 1-(6), p) #OJO: QUITAR EL -6
+  trayectoria = rbernoulli(tiempo_T - 1, p) 
   
   # Obtiene la cantidad de subidas acumuladas.
   vect_cant_sub = cumsum(trayectoria)
   
   # Aplica la funciÓn de la tasa corta para cada instante.   
-  vect_r_t = Vectorize(Tasa_Corta_t)(7:(tiempo_T - 1), col_dol, vect_cant_sub, p) #OJO: CAMBIAR EL 7 POR 1
+  vect_r_t = Vectorize(Tasa_Corta_t)(1:(tiempo_T - 1), col_dol, vect_cant_sub, p) 
   
   # Obtiene el vector de los descuentos D(0,t)
-  vect_D_0_T = c(exp(-r_0), exp(-cumsum(vect_r_t))*Precio(7, col_dol)) # OJO: CAMBIAR 7 POR 1
+  vect_D_0_T = c(exp(-r_0), exp(-cumsum(vect_r_t))*Precio(1, col_dol)) 
                                                                       
   
   return(vect_D_0_T)
