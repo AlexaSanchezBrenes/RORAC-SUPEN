@@ -37,15 +37,13 @@ d_col<-1-sqrt(varianza_mensual_col)
 
 ################## Estimación de parámetros de Ho-Lee - Dólares #########################
 # Tasas overnight: Para calcular varianza y r0
-
-
 TRI_dolares1 <- read.table("TRI dolares.csv", sep = ",",
                           dec = ".", header =  FALSE)
 TRI_dolares2 <- read.table("TRI dolares2.csv", sep = ",",
                            dec = ".", header =  FALSE)
 
 
-TRI_dolares <- rbind(TRI_dolares2, TRI_dolares1)
+TRI_dolares_2<- rbind(TRI_dolares2, TRI_dolares1)
 colnames(TRI_dolares) <- c("Fecha Emision", "Tasa", "Fecha Vencimiento")
 
 
