@@ -14,6 +14,7 @@ library(ggplot2)
 library(stringr)
 library(dygraphs)
 library(zoo)
+library(xts)
 
 ################## Estimación de parámetros de Ho-Lee - Colones #########################
 
@@ -26,8 +27,8 @@ TRI_colones <- read_excel("TRI colones.xlsx",
 
 secuencia<-seq(from=1,to=nrow(TRI_colones),by=7)
 TRI_colones <- TRI_colones[secuencia,]
-TRI_colones<-TRI_colones %>% mutate(Efectiva=log(1+`1 semana`))
-varianza_mensual_col<-4*var(TRI_colones$Efectiva)
+TRI_colones<-TRI_colones %>% mutate(Delta=log(1+`1 semana`/52))
+varianza_mensual_col<-4*var(TRI_colones$Delta)
 
 u_col<-1+sqrt(varianza_mensual_col)
 d_col<-1-sqrt(varianza_mensual_col)
@@ -42,6 +43,8 @@ d_col<-1-sqrt(varianza_mensual_col)
 #TRI_dolares2 <- read.table("TRI dolares2.csv", sep = ",",
 #                           dec = ".", header =  FALSE)
 
+
+# Pasar el overnigth 
 Overnight <- read.csv("overnightrate.csv",sep=',',dec='.',header = F)
 Overnight1 <- read.csv("overnightrate (1).csv",sep=',',dec='.',header = F)
 Overnight2 <- read.csv("overnightrate (2).csv",sep=',',dec='.',header = F)
@@ -56,8 +59,9 @@ Overnight7 <- read.csv("overnightrate (7).csv",sep=',',dec='.',header = F)
 Overnight<-rbind(Overnight,Overnight1,Overnight2,Overnight3,Overnight4,Overnight5,Overnight6,Overnight7)
 Overnight <- Overnight[,-3]
 colnames(Overnight)=c('Fecha','Tasa')
+Overnight %<>%  mutate(Delta=log(1+Tasa/360))
 
-varianza_mensual_dol<-30*var(Overnight$Tasa) #PREGUNTAR
+varianza_mensual_dol<-30*var(Overnight$Delta) #PREGUNTAR
 
 
 u_dol<-1+sqrt(varianza_mensual_dol) 
@@ -69,6 +73,9 @@ r0 <- read.table("overnightrate (7).csv", sep = ",",
                  dec = ".", header =  FALSE) %>% 
   dplyr::select(V1, V2) %>% 
   rename(Fecha  = V1, Tasa = V2) 
+
+r0$Fecha<-as.Date(r0$Fecha,format = '%d/%m/%Y')
+r0<-r0%>%filter(year(Fecha)==2020)
 #Gráfico------------------------------------------------------------
 library(xts)
 library(dygraphs)
@@ -191,7 +198,7 @@ Svensson <- function(tao, col_dol){
 Dic<- setwd("~/RORAC-SUPEN")
 
 #Periodo para el cual se quiere extraer el precio cero cupón -----------------
-periodo <-"2020-06-01"
+periodo <-"2020-03-01"
 #Nombre el archivo. se debe mantener el nombre de la descarga pues indica el periodo
 #disponible histórico-------------------------------------------------------------------
 archivo <- "tnc_18_22.xls"
@@ -212,6 +219,7 @@ colnames(data) <- names
 rho<-((1+(data/2))^2)-1
 rho$Maduracion <- seq(from = 6, to = 1200, by = 6)
 
+
 #3)Función para obtener la interpolación de las tasas anualizadas---------------------------
 interpolacion<-function(x,y){
   Maduracion = seq(from = x[1], to = x[length(x)], by = 1 )
@@ -221,17 +229,16 @@ interpolacion<-function(x,y){
   return(interpolacion)
 }
 
-#4)Interpolación de los de las tasas cortas para cada mes--------------------------------------
-lista <-list()
-for(i in 1:(ncol(rho)-1)){
-  lista[[i]] = interpolacion(rho[,ncol(rho)], rho[,i]) %>% 
-    mutate(Periodo = names[i])
-}
-tabla<-do.call("rbind", lista)
 
-#5) Filtra tabla para periodo----------------------------------------------------------------------
-tabla<-tabla %>% 
-  filter(Periodo == periodo)
+tabla <- rho %>% select(all_of(periodo),Maduracion)
+
+tabla<-rbind(c(mean(r0$Tasa[which(month(r0$Fecha)==month(periodo))]),0),tabla)
+
+#4)Interpolación de los de las tasas cortas para cada mes--------------------------------------
+
+tabla = interpolacion(tabla$Maduracion, tabla[,1]) 
+
+
 
 Precio_dol <- function(tao){
   (1+tabla$rho[which(tabla$Maduracion==tao)])^-tao
@@ -333,7 +340,7 @@ Arbol_Ho_Lee_D(2)
 
 
 ###################### Simulaciones ################################
-Simulaciones<-matrix(nrow = tiempo_T-6,ncol = 10000) ### BORRAR EL -6
+Simulaciones<-matrix(nrow = tiempo_T,ncol = 10000)
 
 for(j in 1:10000){
   Simulaciones[,j]<-Arbol_Ho_Lee_D(2)
@@ -341,14 +348,26 @@ for(j in 1:10000){
  
 
 Simulaciones_promedio<-apply(X = Simulaciones,MARGIN = 1,FUN = mean)
-Simulaciones_ordered<-apply(X = Simulaciones,MARGIN = 1,FUN = sort)
-#Simulaciones_VAR<-apply(X = Simulaciones_ordered,MARGIN = 2,FUN = function(x){quantile(x = x,probs=c(0.05,0.95))})
-Simulaciones500<-Simulaciones_ordered[1:500,]
-Simulaciones9500<-Simulaciones_ordered[9501:10000,]
-CVAR_5<-apply(Simulaciones500, 2, mean)
-CVAR_95<-apply(Simulaciones9500, 2, mean)
+
 
 tabla<-tabla %>% mutate(Precio=(1+rho)^-Maduracion)
+tabla %<>% filter(Maduracion >0 & Maduracion <= length(Simulaciones_promedio)) %>% 
+  mutate(SimulacionP=Simulaciones_promedio)
+
+####--------------------------------------------#####
+################### GRÁFICOS ###########################
+
+
+Fecha<-seq.Date(from = ymd(as.Date(periodo) %m+% months(1)),
+                by = "month",
+                length.out = length(Simulaciones_promedio))
+
+tabla %<>% mutate(Fecha=Fecha)
+
+series <- xts(x = tabla$SimulacionP, order.by = tabla$Fecha)
+dygraph(series, main = "'Overnight' marzo($)") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) 
+
 
 Fecha<-seq.Date(from = ymd(as.Date(periodo) %m+% months(6)),
                 by = "month",
