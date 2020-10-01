@@ -438,3 +438,5 @@ op.seg.post <- Boletas %>%
   filter(Nemotecnico.del.Emisor %in% c("BCCR","G"), 
          !Nemotecnico.del.instrumento %in% c("bemv", "tp$", "tpras", "tptba", "TUDES", "tudes", "bemud", "TPTBA")) %>% 
   group_by(mes.op = month(Fecha.de.Operacion), ano = year(Fecha.de.Vencimiento), mes.ve =month(Fecha.de.Vencimiento)) %>% summarise(cantidad = n(), .groups = "keep") %>% ungroup() 
+
+
