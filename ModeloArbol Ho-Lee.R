@@ -14,42 +14,103 @@ library(ggplot2)
 library(stringr)
 library(dygraphs)
 library(zoo)
+library(xts)
 
 ################## Estimación de parámetros de Ho-Lee - Colones #########################
 
 # Para leer el archivo se le debe cambiar el formato a "xlsx"
 
-TRI_colones <- read_excel("TRI colones.xlsx",col_types = c("date", "numeric"))
+TRI_colones <- read_excel("TRI colones.xlsx",
+                          col_types = c("date", "numeric"))
 
 
 
 secuencia<-seq(from=1,to=nrow(TRI_colones),by=7)
 TRI_colones <- TRI_colones[secuencia,]
-TRI_colones<-TRI_colones %>% mutate(Efectiva=log(1+`1 semana`))
-varianza_mensual_col<-4*var(TRI_colones$Efectiva)
+TRI_colones<-TRI_colones %>% mutate(Delta=log(1+`1 semana`/52))
+varianza_mensual_col<-4*var(TRI_colones$Delta)
 
-u_col<-1+varianza_mensual_col
-d_col<-1-varianza_mensual_col
+u_col<-1+sqrt(varianza_mensual_col)
+d_col<-1-sqrt(varianza_mensual_col)
 
 
 
 
 ################## Estimación de parámetros de Ho-Lee - Dólares #########################
-
-# Para leer el archivo se le debe cambiar el formato a "xlsx"
-
-TRI_dolares <- read_excel("TRI dolares.xlsx",col_types = c("date", "numeric"))
-
-
-secuencia<-seq(from=1,to=nrow(TRI_dolares),by=7)
-TRI_dolares<- TRI_dolares[secuencia,]
-TRI_dolares<-TRI_dolares %>% mutate(Efectiva=log(1+`1 semana`))
-varianza_mensual_dol<-4*var(TRI_dolares$Efectiva)
-
-u_dol<-1+varianza_mensual_dol
-d_dol<-1-varianza_mensual_dol
+# Tasas overnight: Para calcular varianza y r0
+#TRI_dolares1 <- read.table("TRI dolares.csv", sep = ",",
+#                          dec = ".", header =  FALSE)
+#TRI_dolares2 <- read.table("TRI dolares2.csv", sep = ",",
+#                           dec = ".", header =  FALSE)
 
 
+# Pasar el overnigth 
+Overnight <- read.csv("overnightrate.csv",sep=',',dec='.',header = F)
+Overnight1 <- read.csv("overnightrate (1).csv",sep=',',dec='.',header = F)
+Overnight2 <- read.csv("overnightrate (2).csv",sep=',',dec='.',header = F)
+Overnight3 <- read.csv("overnightrate (3).csv",sep=',',dec='.',header = F)
+Overnight4 <- read.csv("overnightrate (4).csv",sep=',',dec='.',header = F)
+Overnight5 <- read.csv("overnightrate (5).csv",sep=',',dec='.',header = F)
+Overnight6 <- read.csv("overnightrate (6).csv",sep=',',dec='.',header = F)
+Overnight7 <- read.csv("overnightrate (7).csv",sep=',',dec='.',header = F)
+
+
+
+Overnight<-rbind(Overnight,Overnight1,Overnight2,Overnight3,Overnight4,Overnight5,Overnight6,Overnight7)
+Overnight <- Overnight[,-3]
+colnames(Overnight)=c('Fecha','Tasa')
+Overnight %<>%  mutate(Delta=log(1+Tasa/360))
+
+varianza_mensual_dol<-30*var(Overnight$Delta) #PREGUNTAR
+
+
+u_dol<-1+sqrt(varianza_mensual_dol) 
+d_dol<-1-sqrt(varianza_mensual_dol)
+
+#################### GRÁFICOS OVERNIGHT ###############################
+
+r0 <- read.table("overnightrate (7).csv", sep = ",",
+                 dec = ".", header =  FALSE) %>% 
+  dplyr::select(V1, V2) %>% 
+  rename(Fecha  = V1, Tasa = V2) 
+
+r0$Fecha<-as.Date(r0$Fecha,format = '%d/%m/%Y')
+r0<-r0%>%filter(year(Fecha)==2020)
+#Gráfico------------------------------------------------------------
+library(xts)
+library(dygraphs)
+Fecha = strptime(r0$Fecha, "%m/%d/%Y")
+series <- xts(x = r0$Tasa, order.by = Fecha)
+dygraph(series, main = "Tasa 'overnight' ($)") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) 
+
+marzo <- r0 %>% 
+  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
+  filter(month(Fecha) == 03 & year(Fecha) == 2020 )  
+series <- xts(x = marzo$Tasa, order.by = marzo$Fecha)
+dygraph(series, main = "'Overnight' marzo($)") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) 
+
+abril <- r0 %>% 
+  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
+  filter(month(Fecha) == 04 & year(Fecha) == 2020 )  
+series <- xts(x = abril$Tasa, order.by = abril$Fecha)
+dygraph(series, main = "'Overnight' abril($)") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) 
+
+mayo <- r0 %>% 
+  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
+  filter(month(Fecha) == 05 & year(Fecha) == 2020 )  
+series <- xts(x = mayo$Tasa, order.by = mayo$Fecha)
+dygraph(series, main = "'Overnight' mayo($)") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) 
+
+junio <- r0 %>% 
+  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
+  filter(month(Fecha) == 06 & year(Fecha) == 2020 )  
+series <- xts(x = junio$Tasa, order.by = junio$Fecha)
+dygraph(series, main = "'Overnight' junio($)") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) 
 
 # El presente código es de uso exclusivo como requisito en la oferta de la
 # consultor?a solicitada por la Superintendencia de Pensiones (SUPEN) para la 
@@ -80,12 +141,12 @@ tiempo_T = 12*15 #PREGUNTAR
 P_CCC <- list(c(0.09, -0.02,  0.05,    0, 96, 1), 
               c(0.07, -0.01,  -0.03, 0.05, 48, 64))
 
-#Variables diferencias en d?lares y colones:
+#Variables diferencias en dólares y colones:
 
-# Donde la u es la proporci?n de cuanto sube el indicador respectivo, en el 
+# Donde la u es la proporción de cuanto sube el indicador respectivo, en el 
 # segundo periodo si se indica como: u_2. Por otro lado d es la proporci?n
 # de cuanto baja el indicador respectivo, y se denota d_2 la propoci?n para
-# el segundo periodo. Adem?s, el factor k.
+# el segundo periodo. Además, el factor k.
 
 u2 = c(u_col, u_dol)
 
@@ -158,6 +219,7 @@ colnames(data) <- names
 rho<-((1+(data/2))^2)-1
 rho$Maduracion <- seq(from = 6, to = 1200, by = 6)
 
+
 #3)Función para obtener la interpolación de las tasas anualizadas---------------------------
 interpolacion<-function(x,y){
   Maduracion = seq(from = x[1], to = x[length(x)], by = 1 )
@@ -167,17 +229,16 @@ interpolacion<-function(x,y){
   return(interpolacion)
 }
 
-#4)Interpolación de los de las tasas cortas para cada mes--------------------------------------
-lista <-list()
-for(i in 1:(ncol(rho)-1)){
-  lista[[i]] = interpolacion(rho[,ncol(rho)], rho[,i]) %>% 
-    mutate(Periodo = names[i])
-}
-tabla<-do.call("rbind", lista)
 
-#5) Filtra tabla para periodo----------------------------------------------------------------------
-tabla<-tabla %>% 
-  filter(Periodo == periodo)
+tabla <- rho %>% select(all_of(periodo),Maduracion)
+
+tabla<-rbind(c(mean(r0$Tasa[which(month(r0$Fecha)==month(periodo))]),0),tabla)
+
+#4)Interpolación de los de las tasas cortas para cada mes--------------------------------------
+
+tabla = interpolacion(tabla$Maduracion, tabla[,1]) 
+
+
 
 Precio_dol <- function(tao){
   (1+tabla$rho[which(tabla$Maduracion==tao)])^-tao
@@ -249,20 +310,20 @@ Arbol_Ho_Lee_D = function(col_dol){
   p = (1 - d2[col_dol])/(u2[col_dol] - d2[col_dol])
   
   # Obtiene la tasa corta inicial
-  r_0 = Tasa_Corta_t(6, col_dol, 0, p)    #OJO: PREGUNTAR A VÍQUEZ: 0 EN VEZ DE 6
+  r_0 = Tasa_Corta_t(0, col_dol, 0, p)  
   
   # Forma la trayectoria aleatoria 179 veces
-  trayectoria = rbernoulli(tiempo_T - 1-(6), p) #OJO: QUITAR EL -6
+  trayectoria = rbernoulli(tiempo_T - 1, p) 
   
   # Obtiene la cantidad de subidas acumuladas.
   vect_cant_sub = cumsum(trayectoria)
   
   # Aplica la funciÓn de la tasa corta para cada instante.   
-  vect_r_t = Vectorize(Tasa_Corta_t)(7:(tiempo_T - 1), col_dol, vect_cant_sub, p) #OJO: CAMBIAR EL 7 POR 1
+  vect_r_t = Vectorize(Tasa_Corta_t)(1:(tiempo_T - 1), col_dol, vect_cant_sub, p) 
   
   # Obtiene el vector de los descuentos D(0,t)
-  vect_D_0_T = c(exp(-r_0), exp(-cumsum(vect_r_t))*Precio(7, col_dol)) # OJO: CAMBIAR 7 POR 1
-                                                                      # PREGUNTAR A VÍQUEZ: Por qué descontar con P(0,1) y no con exp(-r0)
+  vect_D_0_T = c(exp(-r_0), exp(-cumsum(vect_r_t))*Precio(1, col_dol)) 
+                                                                      
   
   return(vect_D_0_T)
 }
@@ -279,7 +340,7 @@ Arbol_Ho_Lee_D(2)
 
 
 ###################### Simulaciones ################################
-Simulaciones<-matrix(nrow = tiempo_T-6,ncol = 10000) ### BORRAR EL -6
+Simulaciones<-matrix(nrow = tiempo_T,ncol = 10000)
 
 for(j in 1:10000){
   Simulaciones[,j]<-Arbol_Ho_Lee_D(2)
@@ -287,13 +348,26 @@ for(j in 1:10000){
  
 
 Simulaciones_promedio<-apply(X = Simulaciones,MARGIN = 1,FUN = mean)
-Simulaciones_ordered<-apply(X = Simulaciones,MARGIN = 1,FUN = sort)
-Simulaciones_VAR<-apply(X = Simulaciones_ordered,MARGIN = 2,FUN = function(x){quantile(x = x,probs=c(0.05,0.95))})
-Simulaciones500<-Simulaciones_ordered[1:500,]
-Simulaciones9500<-Simulaciones_ordered[9501:10000,]
-CVAR_5<-apply(Simulaciones500, 2, mean)
-CVAR_95<-apply(Simulaciones9500, 2, mean)
+
+
 tabla<-tabla %>% mutate(Precio=(1+rho)^-Maduracion)
+tabla %<>% filter(Maduracion >0 & Maduracion <= length(Simulaciones_promedio)) %>% 
+  mutate(SimulacionP=Simulaciones_promedio)
+
+####--------------------------------------------#####
+################### GRÁFICOS ###########################
+
+
+Fecha<-seq.Date(from = ymd(as.Date(periodo) %m+% months(1)),
+                by = "month",
+                length.out = length(Simulaciones_promedio))
+
+tabla %<>% mutate(Fecha=Fecha)
+
+series <- xts(x = tabla$SimulacionP, order.by = tabla$Fecha)
+dygraph(series, main = "'Overnight' marzo($)") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) 
+
 
 Fecha<-seq.Date(from = ymd(as.Date(periodo) %m+% months(6)),
                 by = "month",
@@ -303,11 +377,27 @@ df<-data.frame(Fecha=Fecha,Curva=tabla$Precio[1:length(Simulaciones_promedio)],S
                CVAR_5=CVAR_5,CVAR_95=CVAR_95)
 
 
-don <- xts(x = df$rho, order.by = data$Fecha)
-dygraph(df, main = "Comparación entre curva precio cero cupón y el modelo Ho-Lee") %>%
-  dyAxis("Fecha", drawGrid = FALSE) %>%
-  dySeries(c("CVAR_5", "Simulaciones_prom", "CVAR_95"), label = "Fecha") %>%
-  dyOptions(colors = RColorBrewer::brewer.pal(3, "Set1"))
+
+library(xts)
+
+
+
+series <- xts(x = df[,2:3], order.by = df$Fecha)
+#seriesS<-xts(x=df[,3],order.by=df$Fecha)
+#seriesC,seriesS)
+dygraph(series, main = "Comparación entre curva precio cero cupón y el modelo Ho-Lee") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) %>%
+  dySeries(name=c("Curva","Simulaciones_prom"), label="Curva Cero Cupón" ) %>%
+  dyOptions(colors = RColorBrewer::brewer.pal(2, "Set1"))
+
+# Grafico de Esperanza - CVaR:
+Jor_Graf <- dygraph(Serie_Jor, main = 'VolÃºmen Proyectado de Jornadas', xlab = "AÃ±o", ylab = "Total de Jornadas", width = "100%") %>%
+  dyOptions(drawPoints = TRUE, pointSize = 1, pointShape = "circle", includeZero = FALSE, gridLineColor = "lightseagreen", axisLineColor = "skyblue4") %>% 
+  dyLegend(show = "follow") %>% 
+  dySeries(c("Jor_Graf.CVaR_bajo", "Jor_Graf.Promedio", "Jor_Graf.CVaR_alto"), label = "Esperado") %>% 
+  dySeries(c("Serie_Jor"), label = "Observado")
+
+
 
 
 Curva <- zoo(df$Curva, df$Fecha)
