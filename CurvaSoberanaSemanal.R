@@ -541,7 +541,7 @@ tic()
 # Realizamos la optimización con función objetivo de Ponderación:
 prueba.NS.pon.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, (lim.n+20/7)/2),
                              fn = FuncionObjetivo.NS.Pon,
-                             lower = c(-2/100+TRI.larga, -5, 20/7),
+                             lower = c(TRI.larga, -5, 20/7),
                              upper = c(2/100+TRI.larga, 5, lim.n),
                              control = list(maxit = 1000,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
 toc()
@@ -805,7 +805,7 @@ for (i in 1:length(Lista.Bonos)) {
   Fecha.Final <- Fecha.Inicial+years(5)
   
   # Definimos la serie de tiempo:
-  curva.rho <- Curva.NS(prueba.NS.max.pso$par,Fecha.Inicial,Fecha.Final)
+  curva.rho <- Curva.SA(prueba.SA.pon.pso$par,Fecha.Inicial,Fecha.Final)
   
   # Grafico de las curvas más reciente:
   graf.rho <- dygraph(curva.rho,
