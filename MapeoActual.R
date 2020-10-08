@@ -21,7 +21,8 @@ library(lubridate)
 options(stringsAsFactors = FALSE)
 
 # Dirrección de los datos:
-Dic <- "~/RORAC SUPEN/Emisiones/Boletas"
+#Dic <- "~/RORAC SUPEN/Emisiones/Boletas"
+Dic <- "C:/Users/EQUIPO/Desktop/Estudios/RORAC-SUPEN/Boletas"
 
 # Función para leer los datos
 
