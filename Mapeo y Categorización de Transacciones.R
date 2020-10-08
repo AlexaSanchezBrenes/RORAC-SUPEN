@@ -17,6 +17,7 @@ library(dplyr)
 library("tools")
 library(stringr)
 library(lubridate)
+library(ggplot2)
 options(stringsAsFactors = FALSE)
 
 # Dirrección de los datos:
@@ -27,10 +28,10 @@ Dir <- "~/RORAC SUPEN/Transacciones"
 #Input: archivos .txt que contienen la información de las transacciones
 lee.datos<<-function(archivo){
   
-    tbl<- as.data.frame(unclass(read.table(archivo, 
-                                           header = TRUE, 
-                                           encoding = "Latin1",
-                                           stringsAsFactors = F)))
+  tbl<- as.data.frame(unclass(read.table(archivo, 
+                                         header = TRUE, 
+                                         encoding = "Latin1",
+                                         stringsAsFactors = F)))
   return(tbl)
 }
 
@@ -60,5 +61,107 @@ col.seleccion <- names.1[which(names.1%in%names.2)]
 
 ## Se seleccionan las columnas en común dados los dos grupos de información
 transacciones.2 <- lapply(transacciones, 
-                        function(x) x%>% select(col.seleccion))
+                          function(x) x%>% select(col.seleccion))
 transacciones.2 <- do.call("rbind", transacciones.2)
+
+
+## Se seleccionan las columnas en común dados los dos grupos de información
+transacciones.2 <- lapply(transacciones, 
+                          function(x) x%>% select(all_of(col.seleccion)))
+transacciones.2 <- do.call("rbind", transacciones.2)
+
+## 1.1) Agrupación por Código de la modalidad de inversión: 
+# clase de título valor o instrumento bursátil que se está reportando
+
+cod.mod.inv <- transacciones.2 %>% 
+  group_by(FEC_DAT, COD_MOD_INV, COD_MON) %>% 
+  summarise(Conteo  = n()) 
+
+prom.mensual.cod.mod.inv <- cod.mod.inv %>% 
+  group_by(Anno = year(FEC_DAT),
+           Mes = month(FEC_DAT),
+           COD_MOD_INV, COD_MON) %>% 
+  summarise(PromedioRegistrosMensuales = mean(Conteo)) 
+
+## Gráfica del comportamiento histórico de las modalidad de inversión:
+
+# i. De acuerdo con la documentación (Tablas y Validac RC V6, pag 80) 
+# los tipos de inversiones se agrupan en 10 tipos.
+# ii .A partir de 2020 (ver Tablas y Validac V5, pag 10 rige un cambio 
+# en la clasificación)
+
+#--------------DUDA------------------------------------------
+#-----ENTENDER COMO SE REAGRUPARON LAS MODALIDADES-----------
+#-----ENTENDER DIFERENCIA ENTRE DEUDA INDIVIDUAL Y ESTANDARIZADA SEGÚN EL NIVEL---
+#-----Ver como se van a agrupar esas clasificaciones------------
+
+prom.mensual.cod.mod.inv$Fecha = paste(prom.mensual.cod.mod.inv$Anno,
+                                       prom.mensual.cod.mod.inv$Mes,
+                                       "01", sep="-") %>%
+  ymd() %>%
+  as.Date()
+# Colones
+prom.mensual.cod.mod.inv %>% filter(COD_MON == 1) %>% 
+  ggplot(aes(Fecha, PromedioRegistrosMensuales)) + 
+  geom_col(aes(fill = COD_MOD_INV)) + 
+  scale_x_date(date_labels = "%b %Y")+ 
+  labs(title = "Promedio mensual de registros de las modalidades de inversión" )
+
+## Gráfica del comportamiento histórico para una modalidad de inversión específica:  
+
+#i. Agrupación por moneda
+g.prom.mensual.cod.mod.inv <- function(Modalidad){
+  prom.mensual.cod.mod.inv  %>% 
+    filter(COD_MOD_INV %in% Modalidad) %>% 
+    ggplot(aes(Fecha, PromedioRegistrosMensuales)) + 
+    geom_col(aes(fill = COD_MON)) + 
+    scale_x_date(date_labels = "%b %Y")+ 
+    labs(title = "Promedio mensual de registros por moneda " )
+}
+#ii. Colones
+g.prom.mensual.cod.mod.inv.COL <- function(Modalidad){
+  prom.mensual.cod.mod.inv  %>% filter(COD_MON == 1) %>%
+    filter(COD_MOD_INV %in% Modalidad) %>% 
+    ggplot(aes(Fecha, PromedioRegistrosMensuales)) + 
+    geom_col(aes(fill = COD_MOD_INV)) + 
+    scale_x_date(date_labels = "%b %Y")+ 
+    labs(title = "Promedio mensual de registros (CRC)" )
+}
+#iii. Dolares
+g.prom.mensual.cod.mod.inv.DOL <- function(Modalidad){
+  prom.mensual.cod.mod.inv  %>% filter(COD_MON ==2) %>%
+    filter(COD_MOD_INV %in% Modalidad) %>% 
+    ggplot(aes(Fecha, PromedioRegistrosMensuales)) + 
+    geom_col(aes(fill = COD_MOD_INV)) + 
+    scale_x_date(date_labels = "%b %Y")+ 
+    labs(title = "Promedio mensual de registros ($)" )
+}
+
+
+
+## Por moneda:
+Acciones <- g.prom.mensual.cod.mod.inv("AC")
+Acciones
+
+DeudaIndividual <- g.prom.mensual.cod.mod.inv("DI")
+DeudaIndividual
+
+
+## Colones:
+DeudaEstandarizada.COL <- g.prom.mensual.cod.mod.inv.COL(c("DE", "D2", "D3"))
+DeudaEstandarizada.COL
+
+ParticipacionFondos.COL <- g.prom.mensual.cod.mod.inv.COL(c("P1", "P2", "P3"))
+ParticipacionFondos.COL
+
+## Dolares:
+
+ExchangeTradedFunds.DOL <- g.prom.mensual.cod.mod.inv.DOL(c("E1", "E2", "E3"))
+ExchangeTradedFunds.DOL
+
+DeudaEstandarizada.DOL <- g.prom.mensual.cod.mod.inv.DOL(c("DE", "D2", "D3"))
+DeudaEstandarizada.DOL
+
+ParticipacionFondos.DOL <- g.prom.mensual.cod.mod.inv.DOL(c("P1", "P2", "P3"))
+ParticipacionFondos.DOL
+
