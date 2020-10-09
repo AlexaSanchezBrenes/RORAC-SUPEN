@@ -95,6 +95,7 @@ prom.mensual.cod.mod.inv <- cod.mod.inv %>%
 #-----ENTENDER DIFERENCIA ENTRE DEUDA INDIVIDUAL Y ESTANDARIZADA SEGÚN EL NIVEL---
 #-----Ver como se van a agrupar esas clasificaciones------------
 
+#Fondos van como acciones
 prom.mensual.cod.mod.inv$Fecha = paste(prom.mensual.cod.mod.inv$Anno,
                                        prom.mensual.cod.mod.inv$Mes,
                                        "01", sep="-") %>%
