@@ -18,6 +18,7 @@ library("tools")
 library(stringr)
 library(lubridate)
 library(ggplot2)
+library(tidyverse)
 options(stringsAsFactors = FALSE)
 
 # Dirrección de los datos:
@@ -57,18 +58,90 @@ names.2 <- colnames(transacciones[[1]])
 
 # Columnas que se agregan a la data a partir de Enero 2020
 col.nuevas <- as.data.frame(names.1[which(!names.1%in%names.2)])
-col.seleccion <- names.1[which(names.1%in%names.2)]
-
+#col.seleccion <- names.1[which(names.1%in%names.2)]
+col.seleccion <- c("COD_ISIN", "COD_ENT", "COD_FON", "FEC_DAT", "COD_MOD_INV",
+                   "FEC_VEN",  "TAS_FAC", "VAL_FAC" )
 ## Se seleccionan las columnas en común dados los dos grupos de información
-transacciones.2 <- lapply(transacciones, 
-                          function(x) x%>% select(col.seleccion))
-transacciones.2 <- do.call("rbind", transacciones.2)
-
-
-## Se seleccionan las columnas en común dados los dos grupos de información
-transacciones.2 <- lapply(transacciones, 
+transacciones <- lapply(transacciones, 
                           function(x) x%>% select(all_of(col.seleccion)))
-transacciones.2 <- do.call("rbind", transacciones.2)
+#Se quitan los reportos 
+transacciones <- do.call("rbind", transacciones) %>% 
+                  filter(! COD_MOD_INV %in% c("RE"))
+
+#Se quitan los códigos isin de los títulos que tienen flujos intermedios
+isin.sin.flujos.intermedios <- transacciones %>% 
+  filter(is.na(FEC_VEN) & is.na(TAS_FAC)) 
+unique(isin.sin.flujos.intermedios$COD_MOD_INV)
+
+
+## Se tienen dos grupos:
+ # i. Los registros antes del 01/01/2020
+transacciones.1 <- transacciones %>% 
+  filter(year(FEC_DAT) < 2020) %>% 
+  distinct(COD_ISIN, .keep_all = TRUE) %>% 
+  rename(COD_MOD_INV_Inicial = COD_MOD_INV) %>% 
+  select(-FEC_DAT)
+
+unique(transacciones.1$COD_MOD_INV_Inicial)
+
+# ii. Los registros después del 01/01/2020
+transacciones.2 <- transacciones %>% 
+  filter(year(FEC_DAT) >= 2020) %>% 
+  distinct(COD_ISIN, .keep_all = TRUE) %>% 
+  rename(COD_MOD_INV_Final = COD_MOD_INV) %>% 
+   select(-FEC_DAT)
+
+unique(transacciones.2$COD_MOD_INV_Final)
+## Revisión de clasificación según COD_ISIN antes y después de  Enero 2020:
+
+# 1. COD_ISIN que aparecen solo después
+g.1 <- anti_join(transacciones.1, transacciones.2, by = "COD_ISIN" )
+unique(g.1$COD_MOD_INV_Inicial)
+# 1. COD_ISIN que aparecen solo antes
+g.2 <- anti_join(transacciones.2, transacciones.1, by = "COD_ISIN" )
+unique(g.2$COD_MOD_INV_Final)
+
+# 3. COD_ISIN que aparecen antes y despues:
+repetidos <- inner_join(transacciones.1,transacciones.2,
+                               by = "COD_ISIN") %>% 
+             select(c(1,2,3,4,5,6,7,10))
+
+g.3 <- repetidos
+# 3.1. COD_ISIN que tienen el mismo COD_MOD_INV antes y despúes:
+
+cod.mod.inv.iguales <- repetidos %>% 
+                       filter(COD_MOD_INV_Inicial == COD_MOD_INV_Final)
+unique(cod.mod.inv.iguales$COD_MOD_INV_Inicial)
+
+# 3.2. COD_ISIN que tienen distinto COD_MOD_INV: se observa que las categorías
+#que se reclasificaron corresponden a "DE"  "DI" y "FI".
+# Los que son DE y DI no tienen relevancia pues son títulos con flujos intermedios
+#Queda revisar FI que parecen estar asociados a Fondos
+
+cod.mod.inv.distinto <- repetidos %>% 
+  filter(COD_MOD_INV_Inicial != COD_MOD_INV_Final)
+
+DE <- cod.mod.inv.distinto %>% 
+       filter(COD_MOD_INV_Inicial == "DE") %>% 
+       group_by(COD_MOD_INV_Final) %>% 
+       summarise(CONTEO = n()) ##DD, DO, DR, DT ??
+
+DI <- cod.mod.inv.distinto %>% 
+  filter(COD_MOD_INV_Inicial == "DI") %>% 
+  group_by(COD_MOD_INV_Final) %>% 
+  summarise(CONTEO = n())  
+
+FI <- cod.mod.inv.distinto %>% 
+  filter(COD_MOD_INV_Inicial == "FI") %>% 
+  group_by(COD_MOD_INV_Final) %>% 
+  summarise(CONTEO = n())   ##----M1 Y V2 ????
+
+## 4. Reclasificar g1 con la codificación nueva considerando
+# las clasificaciones de los ISIN que estan en ambos grupos
+
+
+#######################################################################################
+########################################################################################
 
 ## 1.1) Agrupación por Código de la modalidad de inversión: 
 # clase de título valor o instrumento bursátil que se está reportando
