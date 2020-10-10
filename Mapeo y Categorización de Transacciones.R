@@ -51,14 +51,14 @@ lista.df<-function(path=Dir){
   }
   return(lista.df)
 }
-
+tabla <- lista.df(Dir)
 transacciones <- lista.df(Dir)
 names.1 <- colnames(transacciones[[14]])
 names.2 <- colnames(transacciones[[1]])
 
 # Columnas que se agregan a la data a partir de Enero 2020
 col.nuevas <- as.data.frame(names.1[which(!names.1%in%names.2)])
-#col.seleccion <- names.1[which(names.1%in%names.2)]
+col.seleccion.2 <- names.1[which(names.1%in%names.2)]
 col.seleccion <- c("COD_ISIN", "COD_ENT", "COD_FON", "FEC_DAT", "COD_MOD_INV",
                    "FEC_VEN",  "TAS_FAC", "VAL_FAC" )
 ## Se seleccionan las columnas en común dados los dos grupos de información
@@ -139,9 +139,22 @@ FI <- cod.mod.inv.distinto %>%
   group_by(COD_MOD_INV_Final) %>% 
   summarise(CONTEO = n())   ##----M1 Y V2 ????
 
-## 4. Reclasificar g1 con la codificación nueva considerando
-# las clasificaciones de los ISIN que estan en ambos grupos
+isin.FI.P2 <- cod.mod.inv.distinto %>% 
+  filter(COD_MOD_INV_Inicial == "FI" & COD_MOD_INV_Final == "P2") 
+isin.FI.E1 <- cod.mod.inv.distinto %>% 
+  filter(COD_MOD_INV_Inicial == "FI" & COD_MOD_INV_Final == "E1") 
+###################################################################################
+#Características de los FI:
 
+col.seleccion.2 <- names.1[which(names.1%in%names.2)]
+tabla <- lapply(tabla, 
+                        function(x) x%>% dplyr::select(col.seleccion.2))
+
+revision.FI.P2 <- do.call("rbind", tabla) %>% 
+  filter(COD_ISIN %in% isin.FI.P2$COD_ISIN) 
+  
+revision.FI.E1 <- do.call("rbind", tabla) %>% 
+  filter(COD_ISIN %in% isin.FI.E1$COD_ISIN) 
 
 #######################################################################################
 ########################################################################################
