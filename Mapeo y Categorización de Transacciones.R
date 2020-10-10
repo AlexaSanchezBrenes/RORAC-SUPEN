@@ -92,12 +92,15 @@ transacciones.2 <- transacciones %>%
    select(-FEC_DAT)
 
 unique(transacciones.2$COD_MOD_INV_Final)
+
 ## Revisión de clasificación según COD_ISIN antes y después de  Enero 2020:
 
-# 1. COD_ISIN que aparecen solo después
+# 1. COD_ISIN que aparecen solo antes
 g.1 <- anti_join(transacciones.1, transacciones.2, by = "COD_ISIN" )
 unique(g.1$COD_MOD_INV_Inicial)
-# 1. COD_ISIN que aparecen solo antes
+
+pb <- g.1 %>% filter(COD_MOD_INV_Inicial %in% c("FI" ,"FA"))
+# 1. COD_ISIN que aparecen solo después
 g.2 <- anti_join(transacciones.2, transacciones.1, by = "COD_ISIN" )
 unique(g.2$COD_MOD_INV_Final)
 
