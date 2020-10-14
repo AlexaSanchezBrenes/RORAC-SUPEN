@@ -42,7 +42,7 @@ TRI.corta <- log(1+c(1.25,1.28,1.25,1.26,0.76,0.75)/100/52)*52/12
 TRI.larga <- log(1+9.09/100*5)/(5*12)
 
 # Constante de ponderación:
-alpha <- 0
+alpha <- 6.25
 
 #---------------------------------------- Carga de Datos:
 
@@ -326,7 +326,7 @@ FuncionObjetivo.NS.Rep <- function(X){
 
 # Función que debe ser minimizada para estimar parámetros usando diferencia máxima:
 FuncionObjetivo.SA.Max <- function(X){
-  
+  X <- prueba.SA.pon.pso$par
   # Redefinimos parámetros:
   B0 <- X[1]
   B1 <- TRI.corta[i]-B0
@@ -764,25 +764,28 @@ Calibrar.error.SA <- function(alpha.cal){
 }
 
 # Inicializamos variables para calibración:
-serie.cal <- data.frame()
 alphas <- seq(0,10,0.2)
 
-# Generamos puntos de 0 a 10:
-for(al in alphas){
-  serie.cal <- rbind(serie.cal,Calibrar.error.SA(al))
+lista.graf.cal <- list()
+for(i in 1:length(Lista.Bonos)){
+ 
+  # Generamos puntos de 0 a 10:
+  serie.cal <- data.frame()
+  for(al in alphas){
+    serie.cal <- rbind(serie.cal,Calibrar.error.SA(al))
+    }
+  serie.cal <- serie.cal %>% mutate(Diff.semana = as.factor(Diff.semana))
+  
+  # Gráfico sobre errores por semana:
+  graf.cons <- ggplot(data = serie.cal, aes(x = alpha, y = Error.max, colour = Diff.semana)) +
+    geom_line(size = 0.7) + ylab("Error Máximo") +
+    geom_point() +
+    theme_light() +
+    labs(title = "Constante de Ponderación")
+
+  # Visualizamos:
+  lista.graf.cal[[i]] <- graf.cons
 }
-serie.cal <- serie.cal %>% mutate(Diff.semana = as.factor(Diff.semana))
-
-# Gráfico sobre errores por semana:
-graf.cons <- ggplot(data = serie.cal, aes(x = alpha, y = Error.max, colour = Diff.semana)) +
-  geom_line(size = 0.7) + ylab("Error Máximo") +
-  geom_point() +
-  theme_light() +
-  labs(title = "Constante de Ponderación")
-
-# Visualizamos:
-graf.cons
-
 #---------------------------------------- Creación de la Curva para cada Mes:
 
 # Función para generar una curva cero cupón con Nelson-Siegel:
@@ -878,8 +881,8 @@ for (i in 1:length(Lista.Bonos)) {
   Fecha.Final <- Fecha.Inicial+years(35)
   
   # Definimos la serie de tiempo:
-  curva.NS <- Curva.NS(prueba.NS.max.pso$par,Fecha.Inicial,Fecha.Final)
-  curva.SA <- Curva.SA(prueba.SA.max.pso$par,Fecha.Inicial,Fecha.Final)
+  curva.NS <- Curva.NS(prueba.NS.pon.pso$par,Fecha.Inicial,Fecha.Final)
+  curva.SA <- Curva.SA(prueba.SA.pon.pso$par,Fecha.Inicial,Fecha.Final)
   
   # Grafico de las curvas más reciente:
   graf.NS <- dygraph(curva.NS,

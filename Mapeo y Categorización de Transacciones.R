@@ -22,7 +22,7 @@ library(tidyverse)
 options(stringsAsFactors = FALSE)
 
 # Dirrección de los datos:
-Dir <- "~/RORAC SUPEN/Transacciones"
+Dir <- "C:/Users/EQUIPO/Desktop/Estudios/RORAC-SUPEN/Acciones"
 
 # Función para leer los datos
 
@@ -41,7 +41,7 @@ lee.datos<<-function(archivo){
 #Input: dirección ed la carpeta donde se encuentran los archivos con las transacciones
 #Output: Lista con todas las transacciones
 lista.df<-function(path=Dir){
-  
+
   folder<-list.files(path,full.name = TRUE )
   n<-length(folder)
   lista.df<-list()
@@ -226,8 +226,6 @@ g.prom.mensual.cod.mod.inv.DOL <- function(Modalidad){
     scale_x_date(date_labels = "%b %Y")+ 
     labs(title = "Promedio mensual de registros ($)" )
 }
-
-
 
 ## Por moneda:
 Acciones <- g.prom.mensual.cod.mod.inv("AC")
