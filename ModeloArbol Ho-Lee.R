@@ -337,21 +337,23 @@ Arbol_Ho_Lee_D(2)
 
 
 ###################### Simulaciones ################################
-Simulaciones<-matrix(nrow = tiempo_T-1,ncol = 100000)
+Simulaciones<-matrix(nrow = tiempo_T,ncol = 100000)
 
 tic()
 for(j in 1:100000){
   Simulaciones[,j]<-Arbol_Ho_Lee_D(2)
 }
-toc() # 68.08 sec (con 10 000 simulaciones)  199.5 sec (con 100 000 simulaciones)
+toc() # 68.08 sec (con 10 000 simulaciones)  602.11 sec (con 100 000 simulaciones) 
  
 
 Simulaciones_promedio<-apply(X = Simulaciones,MARGIN = 1,FUN = mean)
 
 
-tabla<-tabla %>% mutate(Precio=(1+rho)^-Maduracion)
+tabla<-tabla %>% mutate(Precio=(1+rho)^-Maduracion) %>% mutate(Delta=-log(Precio)) %>% mutate(Tasa=exp(12*Delta)-1)
 tabla %<>% filter(Maduracion >0 & Maduracion <= length(Simulaciones_promedio)) %>% 
-  mutate(SimulacionP=Simulaciones_promedio)
+ mutate(SimulacionP=Simulaciones_promedio) %>% mutate(DeltaSP=-log(SimulacionP)) %>% mutate(TasaSP=exp(12*DeltaSP)-1)
+
+tabla2<-tabla %>% select(Maduracion,Tasa,TasaSP)
 
 ####--------------------------------------------#####
 ################### GRÁFICOS ###########################
@@ -360,6 +362,8 @@ tabla %<>% filter(Maduracion >0 & Maduracion <= length(Simulaciones_promedio)) %
 Fecha<-seq.Date(from = ymd(as.Date(periodo) %m+% months(1)),
                 by = "month",
                 length.out = length(Simulaciones_promedio))
+
+
 
 tabla %<>% mutate(Fecha=Fecha)
 
