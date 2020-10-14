@@ -63,48 +63,8 @@ varianza_mensual_dol<-30*var(Overnight$Delta)
 u_dol<-1+sqrt(varianza_mensual_dol) 
 d_dol<-1-sqrt(varianza_mensual_dol)
 
-#################### GRÁFICOS OVERNIGHT ###############################
 
 
-r0<-Overnight
-
-r0$Fecha<-as.Date(r0$Fecha,format = '%m/%d/%Y')
-#r0<-r0%>%filter(year(Fecha)>=2018)
-#r0<-r0%>%mutate(Mes=month(Fecha),Anno=year(Fecha))%>%group_by(Anno,Mes)%>%summarise(TasaM=max(Tasa))
-#r0<-r0%>%mutate(Fecha=paste(Anno,Mes,"01",sep="-")) %>% mutate(Fecha=as.Date(Fecha,format='%Y-%m-%d'))
-
-#Gráficos Tasas Overnight------------------------------------------------------------
-library(xts)
-library(dygraphs)
-
-
-marzo <- r0 %>% 
-  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
-  filter(month(Fecha) == 03 & year(Fecha) == 2020 )  
-series <- xts(x = marzo$Tasa, order.by = marzo$Fecha)
-dygraph(series, main = "'Overnight' marzo($)") %>%
-  dyAxis("x","Fecha", drawGrid = FALSE) 
-
-abril <- r0 %>% 
-  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
-  filter(month(Fecha) == 04 & year(Fecha) == 2020 )  
-series <- xts(x = abril$Tasa, order.by = abril$Fecha)
-dygraph(series, main = "'Overnight' abril($)") %>%
-  dyAxis("x","Fecha", drawGrid = FALSE) 
-
-mayo <- r0 %>% 
-  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
-  filter(month(Fecha) == 05 & year(Fecha) == 2020 )  
-series <- xts(x = mayo$Tasa, order.by = mayo$Fecha)
-dygraph(series, main = "'Overnight' mayo($)") %>%
-  dyAxis("x","Fecha", drawGrid = FALSE) 
-
-junio <- r0 %>% 
-  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
-  filter(month(Fecha) == 06 & year(Fecha) == 2020 )  
-series <- xts(x = junio$Tasa, order.by = junio$Fecha)
-dygraph(series, main = "'Overnight' junio($)") %>%
-  dyAxis("x","Fecha", drawGrid = FALSE) 
 
 #-----------------------------------------------------------------------------
 
@@ -204,18 +164,10 @@ colnames(data) <- names
 
 #2) Tasas equivalentes semestrales--------------------------------------------------------------------------
 
+
 rho<-((1+(data))^(1/6)-1) 
 
 rho$Maduracion <- seq(from = 6, to = 1200, by = 6)
-
-## Gráfico
-#serierho<-t(data[1,])
-#df<-data.frame(Fecha=r0$Fecha[1:30],rho=tserierho,Overnight=r0$TasaM[1:30])
-#Fecha = strptime(seq.Date(from = as.Date("2018-01-01",to=as.Date("2020-06-01"))), '%Y/%m/%d')
-series_rho <- xts(x=serierho, order.by = r0$Fecha[1:30])
-series <- xts(x = df[2:3], order.by = r0$Fecha[1:30])
-dygraph(series, main = "Tasa 'overnight' ($)") %>%
-  dyAxis("x","Fecha", drawGrid = FALSE) 
 
 
 
@@ -261,6 +213,7 @@ Precio <- function(tao,col_dol){
 # la probabilidad p y el valor de k.
 
 # Devuelve: El resultado obtenido al realizar lo siguiente: 
+
 
 d_t = function(t, p, k){ 
   (k^(t-1))/((1 - p)*(k^(t-1)) + p)
@@ -343,20 +296,23 @@ tic()
 for(j in 1:100000){
   Simulaciones[,j]<-Arbol_Ho_Lee_D(2)
 }
-toc() # 68.08 sec (con 10 000 simulaciones)  602.11 sec (con 100 000 simulaciones) 
+toc() # 68.08 sec (con 10 000 simulaciones)  662.61 sec (con 100 000 simulaciones) 
  
-
 Simulaciones_promedio<-apply(X = Simulaciones,MARGIN = 1,FUN = mean)
 
 
-tabla<-tabla %>% mutate(Precio=(1+rho)^-Maduracion) %>% mutate(Delta=-log(Precio)) %>% mutate(Tasa=exp(12*Delta)-1)
-tabla %<>% filter(Maduracion >0 & Maduracion <= length(Simulaciones_promedio)) %>% 
- mutate(SimulacionP=Simulaciones_promedio) %>% mutate(DeltaSP=-log(SimulacionP)) %>% mutate(TasaSP=exp(12*DeltaSP)-1)
+## Comparación con respecto al precio
 
-tabla2<-tabla %>% select(Maduracion,Tasa,TasaSP)
+tabla<-tabla %>% mutate(Precio=(1+rho)^-Maduracion) 
+tabla %<>% filter(Maduracion >0 & Maduracion <= length(Simulaciones_promedio)) %>% 
+ mutate(SimulacionP=Simulaciones_promedio) 
+
 
 ####--------------------------------------------#####
 ################### GRÁFICOS ###########################
+
+library(xts)
+library(dygraphs)
 
 
 Fecha<-seq.Date(from = ymd(as.Date(periodo) %m+% months(1)),
@@ -372,55 +328,24 @@ dygraph(series, main = "'Simulaciones Promedio") %>%
   dyAxis("x","Fecha", drawGrid = FALSE) 
 
 
-#Fecha<-seq.Date(from = ymd(as.Date(periodo) %m+% months(6)),
-#                by = "month",
-#                length.out = length(Simulaciones_promedio))
-
-#df<-data.frame(Fecha=Fecha,Curva=tabla$Precio[1:length(Simulaciones_promedio)],Simulaciones_prom=Simulaciones_promedio,
-#               CVAR_5=CVAR_5,CVAR_95=CVAR_95)
-
-
-
-library(xts)
-
-
-
 series <- xts(x = tabla[,3:4], order.by = tabla$Fecha)
-#seriesS<-xts(x=df[,3],order.by=df$Fecha)
-#seriesC,seriesS)
 dygraph(series, main = "Comparación entre curva precio cero cupón y el modelo Ho-Lee") %>%
   dyAxis("x","Fecha", drawGrid = FALSE) 
-#  dySeries(name=c("Precio","SimulacionP"), label=c("Curva","Simulaciones_prom") ) %>%
-#  dyOptions(colors = RColorBrewer::brewer.pal(2, "Set1"))
-
-# Grafico de Esperanza - CVaR:
-Jor_Graf <- dygraph(Serie_Jor, main = 'VolÃºmen Proyectado de Jornadas', xlab = "AÃ±o", ylab = "Total de Jornadas", width = "100%") %>%
-  dyOptions(drawPoints = TRUE, pointSize = 1, pointShape = "circle", includeZero = FALSE, gridLineColor = "lightseagreen", axisLineColor = "skyblue4") %>% 
-  dyLegend(show = "follow") %>% 
-  dySeries(c("Jor_Graf.CVaR_bajo", "Jor_Graf.Promedio", "Jor_Graf.CVaR_alto"), label = "Esperado") %>% 
-  dySeries(c("Serie_Jor"), label = "Observado")
 
 
+## Comparación con respecto a la tasa anualizada
+
+tabla<-tabla %>% mutate(Precio=(1+rho)^-Maduracion) %>% mutate(Delta=-log(Precio)) %>% mutate(Tasa=exp(12*Delta)-1)
+tabla %<>% mutate(DeltaSP=-log(SimulacionP)) %>% mutate(TasaSP=exp(12*DeltaSP)-1)
+
+tabla2<-tabla %>% select(Fecha,Tasa,TasaSP)
+
+## Gráfico
+
+series <- xts(x = tabla2[,2:3], order.by = tabla2$Fecha)
+dygraph(series, main = "Comparación entre tasa anualizada y el modelo Ho-Lee") %>%
+  dyAxis("x","Fecha", drawGrid = FALSE) 
 
 
-Curva <- zoo(df$Curva, df$Fecha)
-Sim_prom <- zoo(df$Simulaciones_prom, df$Fecha)
-CVAR5 <- zoo(df$CVAR_5, df$Fecha)
-CVAR95 <- zoo(df$CVAR_95, df$Fecha)
 
-Data <- cbind(Curva, Sim_prom,CVAR5,CVAR95)
 
-dygraph(Data, main = "Comparación Curva Precio Cero Cupón y Modelo Ho-Lee") %>% 
-  dyOptions(drawGrid = F) %>%
-  dyAxis("y", label = "Ho-Lee", independentTicks = TRUE) %>%
-   dySeries("Sim_prom", axis=('y')) %>%
-  dySeries("CVAR5", axis=('y')) %>%
-  dySeries("CVAR95", axis=('y'), stepPlot = T, fillGraph = T)
-
-lungDeaths <- cbind(ldeaths, mdeaths, fdeaths)
-dygraph(Data, main = "Deaths from Lung Disease (UK)") %>%
-  dyOptions(colors = RColorBrewer::brewer.pal(3, "Set2"))
-
-lungDeaths <- cbind(ldeaths, mdeaths, fdeaths)
-dygraph(lungDeaths, main = "Deaths from Lung Disease (UK)") %>%
-  dyOptions(colors = RColorBrewer::brewer.pal(3, "Set2"))
