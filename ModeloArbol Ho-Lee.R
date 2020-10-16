@@ -2,7 +2,6 @@
 
 # Paquetes necesarios:
 library(dplyr)
-library(tidyr)
 library(ggplot2)
 library(magrittr)
 library(readxl)
@@ -19,7 +18,6 @@ library(tictoc)
 ################## Estimación de parámetros de Ho-Lee - Colones #########################
 
 # Para leer el archivo se le debe cambiar el formato a "xlsx"
-
 TRI_colones <- read_excel("TRI colones.xlsx",
                           col_types = c("date", "numeric"))
 
@@ -27,21 +25,18 @@ TRI_colones <- read_excel("TRI colones.xlsx",
 
 secuencia<-seq(from=1,to=nrow(TRI_colones),by=7)
 TRI_colones <- TRI_colones[secuencia,]
-TRI_colones<-TRI_colones %>% mutate(Delta=log((1+`1 semana`/52)))
+TRI_colones<-TRI_colones %>% mutate(Delta=log((1+`1 semana`/52))*52/12)
 varianza_mensual_col<-4*var(TRI_colones$Delta)
 
 u_col<-1+sqrt(varianza_mensual_col)
 d_col<-1-sqrt(varianza_mensual_col)
 
 
-
-
-
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ################## Estimación de parámetros de Ho-Lee - Dólares #########################
 # Tasas overnight: Para calcular varianza y r0
 
 
-Overnight <- read.csv("overnightrate.csv",sep=',',dec='.',header = F)
+Overnight <- read.csv("overnightrate.xls",sep=',',dec='.',header = F)
 Overnight1 <- read.csv("overnightrate (1).csv",sep=',',dec='.',header = F)
 Overnight2 <- read.csv("overnightrate (2).csv",sep=',',dec='.',header = F)
 Overnight3 <- read.csv("overnightrate (3).csv",sep=',',dec='.',header = F)
@@ -55,7 +50,7 @@ Overnight7 <- read.csv("overnightrate (7).csv",sep=',',dec='.',header = F)
 Overnight<-rbind(Overnight,Overnight1,Overnight2,Overnight3,Overnight4,Overnight5,Overnight6,Overnight7)
 Overnight <- Overnight[,-3]
 colnames(Overnight)=c('Fecha','Tasa')
-Overnight %<>%  mutate(Delta=log((1+Tasa/360)))
+Overnight %<>%  mutate(Delta=log((1+Tasa/360))*360/12)
 
 varianza_mensual_dol<-30*var(Overnight$Delta)
 
@@ -78,29 +73,25 @@ library(xts)
 library(dygraphs)
 
 
-marzo <- r0 %>% 
-  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
+marzo <- r0 %>%  
   filter(month(Fecha) == 03 & year(Fecha) == 2020 )  
 series <- xts(x = marzo$Tasa, order.by = marzo$Fecha)
 dygraph(series, main = "'Overnight' marzo($)") %>%
   dyAxis("x","Fecha", drawGrid = FALSE) 
 
 abril <- r0 %>% 
-  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
   filter(month(Fecha) == 04 & year(Fecha) == 2020 )  
 series <- xts(x = abril$Tasa, order.by = abril$Fecha)
 dygraph(series, main = "'Overnight' abril($)") %>%
   dyAxis("x","Fecha", drawGrid = FALSE) 
 
 mayo <- r0 %>% 
-  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
   filter(month(Fecha) == 05 & year(Fecha) == 2020 )  
 series <- xts(x = mayo$Tasa, order.by = mayo$Fecha)
 dygraph(series, main = "'Overnight' mayo($)") %>%
   dyAxis("x","Fecha", drawGrid = FALSE) 
 
-junio <- r0 %>% 
-  mutate(Fecha = strptime(Fecha, "%m/%d/%Y")) %>% 
+junio <- r0 %>%  
   filter(month(Fecha) == 06 & year(Fecha) == 2020 )  
 series <- xts(x = junio$Tasa, order.by = junio$Fecha)
 dygraph(series, main = "'Overnight' junio($)") %>%
@@ -108,26 +99,21 @@ dygraph(series, main = "'Overnight' junio($)") %>%
 
 #-----------------------------------------------------------------------------
 
-# Inicialización de C?digo:
+# Inicialización de Código:
 
 # Fecha_Hoy: Se refiere a la fecha inicial que es el 31-05-2018.   
 
-# IPC_Hoy: Es el tipo de cambio del d?a 31-05-2018 (colones).    
-
 # tiempo_T: Cantidad de meses donde se reaizar? el estudio actuarial.
-
 
 Fecha_Hoy <- date('2018-05-31')
 
-IPC_Hoy <- 104.66
-
-tiempo_T = 12*15 #PREGUNTAR
+tiempo_T = 12*30 #PREGUNTAR
 
 #-----------------------------------------------------------------------------
 
 #Ejemplo de parámetros para las curvas del modelo Nelson-Siegel 
 
-P_CCC <- c(0.09, -0.02,  0.05, 96)
+P_CCC <- c(8.337060e-03, 0.0010415415-8.337060e-03, -3.330267e-12, 1.811465e+01)
 
 #Variables diferencias en dólares y colones:
 
@@ -204,7 +190,7 @@ colnames(data) <- names
 
 #2) Tasas equivalentes semestrales--------------------------------------------------------------------------
 
-rho<-((1+(data))^(1/6)-1) 
+rho<-((1+(data/2))^(1/6)-1) 
 
 rho$Maduracion <- seq(from = 6, to = 1200, by = 6)
 
@@ -227,7 +213,6 @@ interpolacion<-function(x,y){
   interpolacion<-data.frame(Maduracion, rho)
   return(interpolacion)
 }
-
 
 tabla <- rho %>% select(all_of(periodo),Maduracion)
 
@@ -337,14 +322,14 @@ Arbol_Ho_Lee_D(2)
 
 
 ###################### Simulaciones ################################
-Simulaciones<-matrix(nrow = tiempo_T,ncol = 100000)
+Simulaciones<-matrix(nrow = tiempo_T,ncol = 10000)
 
 tic()
-for(j in 1:100000){
-  Simulaciones[,j]<-Arbol_Ho_Lee_D(2)
+for(j in 1:10000){
+  Simulaciones[,j]<-Arbol_Ho_Lee_D(1)
 }
 toc() # 68.08 sec (con 10 000 simulaciones)  602.11 sec (con 100 000 simulaciones) 
- 
+
 
 Simulaciones_promedio<-apply(X = Simulaciones,MARGIN = 1,FUN = mean)
 
@@ -379,13 +364,7 @@ dygraph(series, main = "'Simulaciones Promedio") %>%
 #df<-data.frame(Fecha=Fecha,Curva=tabla$Precio[1:length(Simulaciones_promedio)],Simulaciones_prom=Simulaciones_promedio,
 #               CVAR_5=CVAR_5,CVAR_95=CVAR_95)
 
-
-
-library(xts)
-
-
-
-series <- xts(x = tabla[,3:4], order.by = tabla$Fecha)
+series <- xts(x = tabla[,c(5,8)], order.by = tabla$Fecha)
 #seriesS<-xts(x=df[,3],order.by=df$Fecha)
 #seriesC,seriesS)
 dygraph(series, main = "Comparación entre curva precio cero cupón y el modelo Ho-Lee") %>%
@@ -393,34 +372,3 @@ dygraph(series, main = "Comparación entre curva precio cero cupón y el modelo 
 #  dySeries(name=c("Precio","SimulacionP"), label=c("Curva","Simulaciones_prom") ) %>%
 #  dyOptions(colors = RColorBrewer::brewer.pal(2, "Set1"))
 
-# Grafico de Esperanza - CVaR:
-Jor_Graf <- dygraph(Serie_Jor, main = 'VolÃºmen Proyectado de Jornadas', xlab = "AÃ±o", ylab = "Total de Jornadas", width = "100%") %>%
-  dyOptions(drawPoints = TRUE, pointSize = 1, pointShape = "circle", includeZero = FALSE, gridLineColor = "lightseagreen", axisLineColor = "skyblue4") %>% 
-  dyLegend(show = "follow") %>% 
-  dySeries(c("Jor_Graf.CVaR_bajo", "Jor_Graf.Promedio", "Jor_Graf.CVaR_alto"), label = "Esperado") %>% 
-  dySeries(c("Serie_Jor"), label = "Observado")
-
-
-
-
-Curva <- zoo(df$Curva, df$Fecha)
-Sim_prom <- zoo(df$Simulaciones_prom, df$Fecha)
-CVAR5 <- zoo(df$CVAR_5, df$Fecha)
-CVAR95 <- zoo(df$CVAR_95, df$Fecha)
-
-Data <- cbind(Curva, Sim_prom,CVAR5,CVAR95)
-
-dygraph(Data, main = "Comparación Curva Precio Cero Cupón y Modelo Ho-Lee") %>% 
-  dyOptions(drawGrid = F) %>%
-  dyAxis("y", label = "Ho-Lee", independentTicks = TRUE) %>%
-   dySeries("Sim_prom", axis=('y')) %>%
-  dySeries("CVAR5", axis=('y')) %>%
-  dySeries("CVAR95", axis=('y'), stepPlot = T, fillGraph = T)
-
-lungDeaths <- cbind(ldeaths, mdeaths, fdeaths)
-dygraph(Data, main = "Deaths from Lung Disease (UK)") %>%
-  dyOptions(colors = RColorBrewer::brewer.pal(3, "Set2"))
-
-lungDeaths <- cbind(ldeaths, mdeaths, fdeaths)
-dygraph(lungDeaths, main = "Deaths from Lung Disease (UK)") %>%
-  dyOptions(colors = RColorBrewer::brewer.pal(3, "Set2"))
