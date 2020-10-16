@@ -1,6 +1,7 @@
 #              
 #                                    Consultoría RORAC-SUPEN
-#      Función a optimizar para obtener la curva cero cupón mediante el Modelo de Nelson-Siegel
+#      Función a optimizar para obtener la curva cero cupón mediante el Modelo de Nelson-Siegel y
+#                                           Svenssson
 
 # Autores:
 # Alexa Sánchez
@@ -38,7 +39,7 @@ Dic <- "C:/Users/EQUIPO/Desktop/Estudios/RORAC-SUPEN/Boletas"
 # Vector de tasas cortas mensuales TRI:
 TRI.corta <- log(1+c(1.25,1.28,1.25,1.26,0.76,0.75)/100/52)*52/12
 
-# Tasa de último vencimiento TRI en el primer mes observado:
+# Tasa de último vencimiento TRI en el primer mes observado (marzo):
 TRI.larga <- log(1+9.09/100*5)/(5*12)
 
 # Constante de ponderación:
