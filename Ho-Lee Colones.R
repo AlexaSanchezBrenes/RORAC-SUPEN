@@ -33,8 +33,8 @@ TRI_colones<-TRI_colones %>% mutate(Delta = log((1+`1 semana`/100/52))*52/12)
 # Cantidad de simulaciones:
 cant.simu <- 10000
 
-# Tasa de último vencimiento TRI en el primer mes observado (marzo):
-TRI.larga <- log(1+9.09/100*5)/(5*12)
+# Tasa del primer vencimiento TRI en el primer mes observado (marzo):
+TRI.corta <- log(1+1.25/100/52)*52/12
 
 # Se calcula la varianza mensual:
 varianza.mensual<-4*var(TRI_colones$Delta)
@@ -50,7 +50,7 @@ k <- d2/u2
 tiempo <- 12*35
 
 # Fijamos los parámetros de la curva Nelson Siegel encontrada:
-Par.NS <- c(8.337060e-03, TRI.larga-8.337060e-03, -3.330267e-12, 1.811465e+01)
+Par.NS <- c(8.337060e-03, TRI.corta-8.337060e-03, -3.330267e-12, 1.811465e+01)
 
 # Fechas del periodo a simular:
 Fecha.Inicial <- as.Date("03/31/2020", format = '%m/%d/%Y')
