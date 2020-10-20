@@ -73,26 +73,14 @@
   Fecha.Inicial <- as.Date("03/01/2020", format = '%m/%d/%Y')
   Fecha.Final <- Fecha.Inicial+years(tiempo/12)
   
-  # Datos de Precios Cero Cupón observados:
+  # Datos de tasas compuestas semestralmente observadas:
   
   data.tasas <- Curvas.Tes %>% select(as.character(Fecha.Inicial), Vencimiento) %>% 
     rename(Tasa = as.character(Fecha.Inicial)) %>% mutate(Tasa=Tasa/100)
   data.tasas <- rbind(c(mean(Overnight$TasaS[which((month(Overnight$Fecha)==month(Fecha.Inicial) & year(Overnight$Fecha)==year(Fecha.Inicial)))]),0),data.tasas)
   
-  #data.precios <- Curvas.Tes %>% select(as.character(Fecha.Inicial), Vencimiento) %>% 
-  #  rename(Tasa = as.character(Fecha.Inicial)) %>% 
-  #  mutate(Precio = (1+Tasa/100/2)^(-Vencimiento/6))
-  #data.precios <- rbind(c(0,1), data.precios[1:(tiempo/6),c(2,3)])
 
 #---------------------------------------- Funciones del Modelo:
-
-# Función para interpolar linealmente dos puntos:
-inter.lin <- function(puntos){
-  # Se calculan los precios mensuales interpolados:
-  precios <- approxfun(puntos$Vencimiento, puntos$Precio)(0:tiempo)
-  curva.meses <- data.frame(Vencimiento = 0:tiempo, Precio = precios)
-  return(curva.meses)
-}
 
 # Función para interpolar linealmente las tasas
 inter.lin.tasas <- function(puntos){
@@ -102,13 +90,11 @@ inter.lin.tasas <- function(puntos){
   return(curva.meses)
 }
 
-# Creamos el vector de precios:
+# Creamos el vector de tasas interpoladas 
 vec.tasas <- inter.lin.tasas(data.tasas)
-#vec.precios <- inter.lin(data.precios)
 
+# Creamos el vector de precios:
 data.precios <- vec.tasas %>% mutate(Precio=(1+TasasS/2)^(-Vencimiento/6))
-#  mutate(Precio = (1+Tasa/100/2)^(-Vencimiento/6))
-#data.precios <- rbind(c(0,1), data.precios[1:(tiempo/6),c(2,3)])
 vec.precios <-data.precios %>% select(-TasasS)
 
 # Función del parámetro de bajada:
