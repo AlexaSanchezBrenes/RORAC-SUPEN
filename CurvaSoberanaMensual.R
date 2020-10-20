@@ -270,59 +270,6 @@ FuncionObjetivo.NS.Pon <- function(X){
   return(ErrorTotal)
 }
 
-# Función que debe ser minimizada para estimar parámetros usando representante anual:
-FuncionObjetivo.NS.Rep <- function(X){
-  
-  # Redefinimos parámetros:
-  B0 <- X[1]
-  B1 <- TRI.corta[i]-B0
-  B2 <- X[2]
-  n1 <- X[3] 
-  
-  # Aplicamos a todo el dataframe y creamos los sumandos:
-  DiferenciasPrecio.Rep <- Tau.aplicado %>% 
-    mutate(monto = ifelse(Fecha.Pago == Fecha.de.Vencimiento, 1+Tasa.facial, Tasa.facial), 
-           NelsonSiegel = B0 + B1 * ((1-exp(-Tau/n1))/(Tau/n1)) + 
-             B2 * (((1-exp(-Tau/n1))/(Tau/n1)) - exp(-Tau/n1))) %>%
-    mutate(FactorDesc = exp(-Tau*NelsonSiegel)) %>% 
-    group_by(Numero.de.Contrato.Largo) %>%
-    mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
-    ungroup()
-  
-  # Se crean las fechas de la curva:
-  fecha.inicial <- as.Date(Lista.Bonos[[i]]$Fecha.de.Operacion[1])-day(Lista.Bonos[[i]]$Fecha.de.Operacion[1])+1
-  fecha.final <- fecha.inicial+years(5)
-  fechas <- seq.Date(from = as.Date(fecha.inicial),
-                     to = as.Date(fecha.final),
-                     by = "days")
-  
-  # Se generan las observaciones:
-  datos.curva <- data.frame(fechas.iniciales = rep(fecha.inicial,length(fechas)),
-                            fechas.finales = fechas) %>% 
-    mutate(Tau = Tau(fechas.iniciales, fechas.finales)) %>% 
-    mutate(NelsonSiegel = B0 + B1 * ((1-exp(-Tau/n1))/(Tau/n1)) + 
-             B2 * (((1-exp(-Tau/n1))/(Tau/n1)) - exp(-Tau/n1))) %>% 
-    mutate(tasa = exp(12*NelsonSiegel)-1) 
-  datos.curva[1,5] <- exp(12*TRI.corta[[i]])-1
-  
-  # Verificamos si hay tasas negativas:
-  TasaNegativa <- sum(datos.curva$tasa<0)
-  
-  DiferenciasPrecio.Rep <- DiferenciasPrecio.Rep %>% 
-    select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Fecha.de.Vencimiento) %>%
-    unique() %>% 
-    group_by(year(Fecha.de.Vencimiento)) %>% 
-    mutate(Error = (PrecioTeorico-Precio)^2/n()) %>% 
-    ungroup()
-  
-  # Se calcula el error total:
-  ErrorTotal <- sum(DiferenciasPrecio.Rep$Error)
-  
-  # Penalización por no estar en restricciones:
-  ErrorTotal <- ifelse((0 < B0) & (0==TasaNegativa), ErrorTotal, ErrorTotal+1e4)
-  return(ErrorTotal)
-}
-
 # Utilizando la versión alterada del modelo Svensson:
 
 # Función que debe ser minimizada para estimar parámetros usando diferencia máxima:
@@ -441,65 +388,6 @@ FuncionObjetivo.SA.Pon <- function(X){
   return(ErrorTotal)
 }
 
-# Función que debe ser minimizada para estimar parámetros usando representante anual:
-FuncionObjetivo.SA.Rep <- function(X){
-  
-  # Redefinimos parámetros:
-  B0 <- X[1]
-  B1 <- TRI.corta[i]-B0
-  B2 <- X[2]
-  B3 <- X[3]
-  n1 <- X[4]
-  n2 <- X[5]
-  
-  # Aplicamos a todo el dataframe y creamos los sumandos:
-  DiferenciasPrecio.Rep <- Tau.aplicado %>% 
-    mutate(monto = ifelse(Fecha.Pago == Fecha.de.Vencimiento, 1+Tasa.facial, Tasa.facial), 
-           SvenssonAlterada = B0 * Tau +
-             B1 * ((1-exp(-Tau/n1))*n1) + 
-             B2 * (1-(Tau/n1+1)*exp(-Tau/n1))*n1^2 +
-             ((B3*n2*n1)/(n1-n2)) * (((1-(Tau/n1+1)*exp(-Tau/n1))*n1^2) - ((1-(Tau/n2+1)*exp(-Tau/n2))*n2^2))) %>%
-    mutate(FactorDesc = exp(-SvenssonAlterada)) %>% 
-    group_by(Numero.de.Contrato.Largo) %>%
-    mutate(PrecioTeorico = sum(monto*FactorDesc)) %>% 
-    ungroup() 
-  
-  # Se crean las fechas de la curva:
-  fecha.inicial <- as.Date(Lista.Bonos[[i]]$Fecha.de.Operacion[1])-day(Lista.Bonos[[i]]$Fecha.de.Operacion[1])+1
-  fecha.final <- fecha.inicial+years(5)
-  fechas <- seq.Date(from = as.Date(fecha.inicial),
-                     to = as.Date(fecha.final),
-                     by = "days")
-  
-  # Se generan las observaciones:
-  datos.curva <- data.frame(fechas.iniciales = rep(fecha.inicial,length(fechas)),
-                            fechas.finales = fechas) %>% 
-    mutate(Tau = Tau(fechas.iniciales, fechas.finales)) %>% 
-    mutate(SvenssonAlterada = B0 * Tau +
-             B1 * ((1-exp(-Tau/n1))*n1) + 
-             B2 * (1-(Tau/n1+1)*exp(-Tau/n1))*n1^2 +
-             ((B3*n2*n1)/(n1-n2)) * (((1-(Tau/n1+1)*exp(-Tau/n1))*n1^2) - ((1-(Tau/n2+1)*exp(-Tau/n2))*n2^2))) %>% 
-    mutate(tasa = exp(12*SvenssonAlterada/Tau)-1) 
-  datos.curva[1,5] <- exp(12*TRI.corta[[i]])-1
-  
-  # Verificamos si hay tasas negativas:
-  TasaNegativa <- sum(datos.curva$tasa<0)
-  
-  DiferenciasPrecio.Rep <- DiferenciasPrecio.Rep %>% 
-    select(Numero.de.Contrato.Largo, Mes, PrecioTeorico, Precio, Fecha.de.Vencimiento) %>%
-    unique() %>% 
-    group_by(year(Fecha.de.Vencimiento)) %>% 
-    mutate(Error = (PrecioTeorico-Precio)^2/n()) %>% 
-    ungroup()
-  
-  # Se calcula el error total:
-  ErrorTotal <- sum(DiferenciasPrecio.Rep$Error)
-  
-  # Penalización por no estar en restricciones:
-  ErrorTotal <- ifelse((0 < B0) & (0==TasaNegativa), ErrorTotal, ErrorTotal+1e4)
-  return(ErrorTotal)
-}
-
 #---------------------------------------- Pruebas de tiempo por función:
 
 # Redefinimos puntos iniciales de prueba:
@@ -534,17 +422,12 @@ tic()
 FuncionObjetivo.NS.Pon(X)
 toc()
 tic()
-FuncionObjetivo.NS.Rep(X)
-toc()
-tic()
 FuncionObjetivo.SA.Max(Y)
 toc()
 tic()
 FuncionObjetivo.SA.Pon(Y)
 toc()
-tic()
-FuncionObjetivo.SA.Rep(Y)
-toc()
+
 
 #---------------------------------------- Prueba para Optimizadores:
 
@@ -555,36 +438,12 @@ Beta3Inicial <- 0
 ## Particle Swarm Optimization
 
 tic()
-# Realizamos la optimización con función objetivo de Máximo:
-prueba.NS.max.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, (3+lim.n)/2),
-                             fn = FuncionObjetivo.NS.Max,
-                             lower = c(TRI.larga, -lim.beta, 3),
-                             upper = c(lim.tl, lim.beta, lim.n),
-                             control = list(maxit = 1000,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
-toc()
-tic()
 # Realizamos la optimización con función objetivo de Ponderación:
 prueba.NS.pon.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, (3+lim.n)/2),
                              fn = FuncionObjetivo.NS.Pon,
                              lower = c(TRI.larga, -lim.beta, 3),
                              upper = c(lim.tl, lim.beta, lim.n),
                              control = list(maxit = 1000,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
-toc()
-tic()
-# Realizamos la optimización con función objetivo de Máximo:
-prueba.NS.rep.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, (3+lim.n)/2),
-                             fn = FuncionObjetivo.NS.Rep,
-                             lower = c(TRI.larga, -lim.beta, 3),
-                             upper = c(lim.tl, lim.beta, lim.n),
-                             control = list(maxit = 1000,s = 15,w = -0.1832,c.p =0.5287,c.g = 3.1913))
-toc()
-tic()
-# Realizamos la optimización con función objetivo de Máximo:
-prueba.SA.max.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (3 + 2*12)/2, (lim.n+3*12)/2),
-                             fn = FuncionObjetivo.SA.Max,
-                             lower = c(TRI.larga, -lim.beta, -lim.beta, 3, 3*12),
-                             upper = c(lim.tl, lim.beta, lim.beta, 2*12, lim.n),
-                             control = list(maxit = 1000,s = 20,w = -0.1832,c.p =0.5287,c.g = 3.1913))
 toc()
 tic()
 # Realizamos la optimización con función objetivo de Ponderación:
@@ -594,14 +453,7 @@ prueba.SA.pon.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (3 +
                              upper = c(lim.tl, lim.beta, lim.beta, 2*12, lim.n),
                              control = list(maxit = 1000,s = 20,w = -0.1832,c.p =0.5287,c.g = 3.1913))
 toc()
-tic()
-# Realizamos la optimización con función objetivo de Ponderación:
-prueba.SA.rep.pso <- psoptim(par = c(TRI.larga, Beta2Inicial, Beta3Inicial, (3 + 2*12)/2, (lim.n+3*12)/2),
-                             fn = FuncionObjetivo.SA.Rep,
-                             lower = c(TRI.larga, -lim.beta, -lim.beta, 3, 3*12),
-                             upper = c(lim.tl, lim.beta, lim.beta, 2*12, lim.n),
-                             control = list(maxit = 1000,s = 20,w = -0.1832,c.p =0.5287,c.g = 3.1913))
-toc()
+
 
 
 ## Simulated Annealing
@@ -853,7 +705,7 @@ Beta2Inicial <- 0
 
 # Optimizamos la función objetivo para cada mes en los datos:
 for (i in 1:length(Lista.Bonos)) {
-  i <- 1
+
   # Calculamos los Taus para cada cero cupón:
   Tau.aplicado <- bind_rows(lapply(split(Lista.Bonos[[i]], seq(nrow(Lista.Bonos[[i]]))), Tau.total))
   
