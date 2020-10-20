@@ -24,7 +24,7 @@
   #---------------------------------------- Carga de Datos:
   
   # Historial de Overnight de Estados Unidos: 
-  Overnight <- read.csv("overnightrate.xls",sep=',',dec='.',header = F)
+  Overnight <- read.csv("overnightrate.csv",sep=',',dec='.',header = F)
   Overnight1 <- read.csv("overnightrate (1).csv",sep=',',dec='.',header = F)
   Overnight2 <- read.csv("overnightrate (2).csv",sep=',',dec='.',header = F)
   Overnight3 <- read.csv("overnightrate (3).csv",sep=',',dec='.',header = F)
@@ -36,6 +36,7 @@
   rm(Overnight1,Overnight2,Overnight3,Overnight4,Overnight5,Overnight6,Overnight7)
   Overnight <- Overnight[,-3]
   colnames(Overnight)=c('Fecha','Tasa')
+  Overnight <- Overnight %>% mutate(Tasa=Tasa/100) %>% mutate(TasaS=((1+Tasa/360)^(360/2)-1)*2) %>% mutate(Fecha=as.Date(Fecha, format = '%m/%d/%Y'))
   
   # Se calcula el delta para generar las proporciones u y d:
   Overnight <- Overnight %>% mutate(Delta=log((1+Tasa/100/360))*360/12)
@@ -65,7 +66,7 @@
   # Fijamos el parámetro fijo k del modelo:
   k <- d2.dol/u2.dol
   
-  # Fijamos el tiempo a simular (10 años) en meses:
+  # Fijamos el tiempo a simular (35 años) en meses:
   tiempo <- 12*35
   
   # Fechas del periodo a simular:
@@ -73,10 +74,15 @@
   Fecha.Final <- Fecha.Inicial+years(tiempo/12)
   
   # Datos de Precios Cero Cupón observados:
-  data.precios <- Curvas.Tes %>% select(as.character(Fecha.Inicial), Vencimiento) %>% 
-    rename(Tasa = as.character(Fecha.Inicial)) %>% 
-    mutate(Precio = (1+Tasa/100/2)^(-Vencimiento/6))
-  data.precios <- rbind(c(0,1), data.precios[1:(tiempo/6),c(2,3)])
+  
+  data.tasas <- Curvas.Tes %>% select(as.character(Fecha.Inicial), Vencimiento) %>% 
+    rename(Tasa = as.character(Fecha.Inicial)) %>% mutate(Tasa=Tasa/100)
+  data.tasas <- rbind(c(mean(Overnight$TasaS[which((month(Overnight$Fecha)==month(Fecha.Inicial) & year(Overnight$Fecha)==year(Fecha.Inicial)))]),0),data.tasas)
+  
+  #data.precios <- Curvas.Tes %>% select(as.character(Fecha.Inicial), Vencimiento) %>% 
+  #  rename(Tasa = as.character(Fecha.Inicial)) %>% 
+  #  mutate(Precio = (1+Tasa/100/2)^(-Vencimiento/6))
+  #data.precios <- rbind(c(0,1), data.precios[1:(tiempo/6),c(2,3)])
 
 #---------------------------------------- Funciones del Modelo:
 
@@ -88,8 +94,22 @@ inter.lin <- function(puntos){
   return(curva.meses)
 }
 
+# Función para interpolar linealmente las tasas
+inter.lin.tasas <- function(puntos){
+  # Se calculan los precios mensuales interpolados:
+  tasas <- approxfun(puntos$Vencimiento, puntos$Tasa)(0:tiempo)
+  curva.meses <- data.frame(Vencimiento = 0:tiempo, TasasS = tasas)
+  return(curva.meses)
+}
+
 # Creamos el vector de precios:
-vec.precios <- inter.lin(data.precios)
+vec.tasas <- inter.lin.tasas(data.tasas)
+#vec.precios <- inter.lin(data.precios)
+
+data.precios <- vec.tasas %>% mutate(Precio=(1+TasasS/2)^(-Vencimiento/6))
+#  mutate(Precio = (1+Tasa/100/2)^(-Vencimiento/6))
+#data.precios <- rbind(c(0,1), data.precios[1:(tiempo/6),c(2,3)])
+vec.precios <-data.precios %>% select(-TasasS)
 
 # Función del parámetro de bajada:
 d.t = function(t, p, k){ 
@@ -149,7 +169,8 @@ Validacion.HL <- function(total.trayec){
 #---------------------------------------- Resultados:
 
 # Generamos la curva previamente encontrada:
-Cero.Cupon.Esp <- vec.precios$Precio[1:(tiempo+1)]
+#Cero.Cupon.Esp <- vec.precios$Precio[1:(tiempo+1)]
+Cero.Cupon.Esp <- data.precios$Precio
 Cero.Cupon.Pro <- c(1,Validacion.HL(cant.simu))
 
 # Error Porcentual Promedio:
