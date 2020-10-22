@@ -274,7 +274,7 @@ FuncionObjetivo.NS.Pon <- function(X){
 
 # Función que debe ser minimizada para estimar parámetros usando diferencia máxima:
 FuncionObjetivo.SA.Max <- function(X){
-  X <- prueba.SA.pon.pso$par
+
   # Redefinimos parámetros:
   B0 <- X[1]
   B1 <- TRI.corta[i]-B0
@@ -734,7 +734,7 @@ for (i in 1:length(Lista.Bonos)) {
   Fecha.Final <- Fecha.Inicial+years(35)
   
   # Definimos la serie de tiempo:
-  curva.NS <- Curva.NS(prueba.NS.pon.pso$par,Fecha.Inicial,Fecha.Final)
+  curva.NS <- Curva.NS(X,Fecha.Inicial,Fecha.Final)
   curva.SA <- Curva.SA(prueba.SA.pon.pso$par,Fecha.Inicial,Fecha.Final)
   
   # Grafico de las curvas más reciente:
