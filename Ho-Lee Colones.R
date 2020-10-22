@@ -73,7 +73,7 @@ Precio.NS <- function(tao){
            (tao/Par.NS[4])) - exp(-tao/Par.NS[4])
     
     precio = exp(-(Par.NS[1] + Par.NS[2]*a + 
-                     Par.NS[3]*b)*tao/12)
+                     Par.NS[3]*b)*tao)
   }
   return(precio)
 }
