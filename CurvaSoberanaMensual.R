@@ -33,7 +33,6 @@ options(stringsAsFactors = FALSE)
 #---------------------------------------- Parámetros Generales:
 
 # Dirrección de los datos:
-#Dic <- "C:/Users/Laura/Documents/RORAC-SUPEN/Boletas"
 Dic <- "C:/Users/EQUIPO/Desktop/Estudios/RORAC-SUPEN/Boletas"
 
 # Vector de tasas cortas mensuales TRI:
@@ -43,7 +42,7 @@ TRI.corta <- log(1+c(1.25,1.28,1.25,1.26,0.76,0.75)/100/52)*52/12
 TRI.larga <- log(1+9.09/100*5)/(5*12)
 
 # Constante de ponderación:
-alpha <- 6.25
+alpha <- 1
 
 #---------------------------------------- Carga de Datos:
 
@@ -274,7 +273,10 @@ FuncionObjetivo.NS.Pon <- function(X){
 
 # Función que debe ser minimizada para estimar parámetros usando diferencia máxima:
 FuncionObjetivo.SA.Max <- function(X){
+<<<<<<< HEAD
 
+=======
+>>>>>>> 276e96f9ab41d7b0b156871dc314e7de8cc0cbbb
   # Redefinimos parámetros:
   B0 <- X[1]
   B1 <- TRI.corta[i]-B0
@@ -479,41 +481,77 @@ prueba.max.sa <- optim_sa(fun = FuncionObjetivo.Pon,
                                          nlimit = 1000))
 toc()
 
-## Nelder-Mead
+## Nelder-Mead - Nelson Siegel 
 
 A=matrix(c(1,0,0,0,1,0,0,0,1,-1,0,0,0,-1,0,0,0,-1),nrow = 6,byrow = T)
-B=c(-2/100+TRI.larga, -5, 0,-2/100-TRI.larga, -5, -lim.n)
+B=c(TRI.larga*0.99, -lim.beta, 3,-lim.tl, -lim.beta, -lim.n)
 
 tic()
 # Realizamos la optimización con función objetivo de Máximo:
-prueba.max.nm <-constrOptim(theta = c(TRI.larga, Beta2Inicial, lim.n/2),
+prueba.NS.max.nm <-constrOptim(theta = c(TRI.larga, Beta2Inicial, (3+lim.n)/2),
                             f = FuncionObjetivo.Max, grad = NULL, ui=A, 
                             ci=B, control = list(maxit=1000),
                             method = "Nelder-Mead")
 toc() 
 tic()
 # Realizamos la optimización con función objetivo de Ponderación:
-prueba.pon.nm <- constrOptim(theta = c(TRI.larga, Beta2Inicial, lim.n/2), 
-                             f = FuncionObjetivo.Pon, ui=A,
+prueba.NS.pon.nm <- constrOptim(theta = c(TRI.larga, Beta2Inicial, (3+lim.n)/2), 
+                             f = FuncionObjetivo.NS.Pon, ui=A,
                              ci=B, control = list(maxit=1000),
                              method = "Nelder-Mead")
 toc() 
 
-## Genetic Algorithm 
+## Nelder-Mead - Svensson 
+
+A=matrix(c(1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,-1,0,0,0,0,0,-1,0,0,0,0,0,-1,0,0,0,0,0,-1,0,0,0,0,0,-1),nrow = 10,byrow = T)
+B=c(TRI.larga*0.99, -lim.beta, -lim.beta, 3, 3*12, -lim.tl, -lim.beta, -lim.beta, -2*12, -lim.n)
+
+tic()
+# Realizamos la optimización con función objetivo de Máximo:
+prueba.SA.max.nm <-constrOptim(theta = c(TRI.larga, Beta2Inicial, Beta3Inicial,(3+2*12)/2, (lim.n+3*12)/2),
+                            f = FuncionObjetivo.SA.Max, grad = NULL, ui=A, 
+                            ci=B, control = list(maxit=1000),
+                            method = "Nelder-Mead")
+toc() 
+tic()
+# Realizamos la optimización con función objetivo de Ponderación:
+prueba.SA.pon.nm <- constrOptim(theta = c(TRI.larga, Beta2Inicial, Beta3Inicial,(3+2*12)/2, (lim.n+3*12)/2), 
+                             f = FuncionObjetivo.SA.Pon, ui=A,
+                             ci=B, control = list(maxit=1000),
+                             method = "Nelder-Mead")
+toc() 
+
+## Genetic Algorithm - Nelson Siegel
 
 tic()
 
 # Realizamos la optimización con función objetivo de Máximo:
-prueba.max.ga <- ga(type = "real-valued",fitness = FuncionObjetivo.Max, 
-                    lower = c(-2/100+TRI.larga, -5, 0),
-                    upper = c(2/100+TRI.larga, 5, lim.n),maxiter=1000)
+prueba.NS.max.ga <- ga(type = "real-valued",fitness = FuncionObjetivo.NS.Max, 
+                    lower = c(TRI.larga, -lim.beta, 3),
+                    upper = c(lim.tl, lim.beta, lim.n),maxiter=1000)
 toc() 
 tic()
 # Realizamos la optimización con función objetivo de Ponderación:
-prueba.pon.ga <- ga(type = "real-valued",fitness = FuncionObjetivo.Pon, 
-                    lower = c(-2/100+TRI.larga, -5, 0),
-                    upper = c(2/100+TRI.larga, 5, lim.n),maxiter=1000)
+prueba.NS.pon.ga <- ga(type = "real-valued",fitness = FuncionObjetivo.NS.Pon, 
+                    lower = c(TRI.larga, -lim.beta, 3),
+                    upper = c(lim.tl, lim.beta, lim.n),maxiter=1000)
 toc()  
+
+## Genetic Algorithm - Svensson
+
+tic()
+
+# Realizamos la optimización con función objetivo de Máximo:
+prueba.NS.max.ga <- ga(type = "real-valued",fitness = FuncionObjetivo.SA.Max, 
+                       lower = c(TRI.larga, -lim.beta, -lim.beta, 3, 3*12),
+                       upper = c(lim.tl, lim.beta, lim.beta, 2*12, lim.n),maxiter=1000)
+toc() 
+tic()
+# Realizamos la optimización con función objetivo de Ponderación:
+prueba.NS.pon.ga <- ga(type = "real-valued",fitness = FuncionObjetivo.SA.Pon, 
+                       lower = c(TRI.larga, -lim.beta, -lim.beta, 3, 3*12),
+                       upper = c(lim.tl, lim.beta, lim.beta, 2*12, lim.n),maxiter=1000)
+toc()
 
 #---------------------------------------- Calibración de la Constante de Ponderación:
 
