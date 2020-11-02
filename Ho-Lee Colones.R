@@ -51,6 +51,7 @@ tiempo <- 12*35
 
 # Fijamos los parámetros de la curva Nelson Siegel encontrada:
 Par.NS <- c(8.337060e-03, TRI.corta-8.337060e-03, -3.330267e-12, 1.811465e+01)
+Par.SA <- c(6.253579e-03,-0.005212038,-2.791880e-05,6.6101177e-06,1.357261e+01,4.806624e+01)
 
 # Fechas del periodo a simular:
 Fecha.Inicial <- as.Date("03/31/2020", format = '%m/%d/%Y')
@@ -59,23 +60,32 @@ Fecha.Final <- Fecha.Inicial+years(35)
 #---------------------------------------- Funciones del Modelo:
 
 # Función que genera el precio de la curva a un tiempo (Tao) dado:
-Precio.NS <- function(tao){
-  
+Precio <- function(tao,Svensson){
   if(tao == 0){
     precio = 1
   }else{
-    
-    # Se calculan primero los coeficientes:
-    a = (1-exp(-tao/Par.NS[4]))/
-      (tao/Par.NS[4])
-    
-    b = ((1-exp(-tao/Par.NS[4]))/
-           (tao/Par.NS[4])) - exp(-tao/Par.NS[4])
-    
-    precio = exp(-(Par.NS[1] + Par.NS[2]*a + 
-                     Par.NS[3]*b)*tao)
-  }
-  return(precio)
+      if(Svensson == 1){
+        Delta = Par.SA[1] * tao +
+          Par.SA[2] * ((1-exp(-tao/Par.SA[5]))*Par.SA[5]) + 
+          Par.SA[3] * (1-(tao/Par.SA[5]+1)*exp(-tao/Par.SA[5]))*Par.SA[5]^2 +
+          ((Par.SA[4]*Par.SA[6]*Par.SA[5])/(Par.SA[5]-Par.SA[6])) * (((1-(tao/Par.SA[5]+1)*exp(-tao/Par.SA[5]))*Par.SA[5]^2) - ((1-(tao/Par.SA[6]+1)*exp(-tao/Par.SA[6]))*Par.SA[6]^2))
+      
+        precio = exp(-Delta*tao)
+        }
+      
+      else{
+        
+        # Se calculan primero los coeficientes:
+        a = (1-exp(-tao/Par.NS[4]))/
+          (tao/Par.NS[4])
+        
+        b = ((1-exp(-tao/Par.NS[4]))/
+               (tao/Par.NS[4])) - exp(-tao/Par.NS[4])
+        
+        precio = exp(-(Par.NS[1] + Par.NS[2]*a + 
+                         Par.NS[3]*b)*tao)
+      }}
+      return(precio)
 }
 
 # Función del parámetro de bajada:
@@ -87,8 +97,8 @@ d.t = function(t, p, k){
 Tasa.Corta.t = function(tao, cant_sub, p){
   
   # Se obtiene el precio de acuerdo a las curvas Nelson-Siegel-Svensson
-  P_0_t = Precio.NS(tao)
-  P_0_T = Precio.NS(tao + 1)
+  P_0_t = Precio(tao)
+  P_0_T = Precio(tao + 1)
   
   # Se obtiene la tasa corta mediante la fórmula.
   r_t = log(P_0_t/P_0_T) - log(d.t(tao + 1, p, k)) + cant_sub*log(k)
@@ -136,7 +146,7 @@ Validacion.HL <- function(total.trayec){
 #---------------------------------------- Resultados:
 
 # Generamos la curva previamente encontrada:
-Cero.Cupon.Esp <- c(Vectorize(Precio.NS)(0:tiempo))
+Cero.Cupon.Esp <- c(Vectorize(Precio)(0:tiempo))
 Cero.Cupon.Pro <- c(1, Validacion.HL(cant.simu)) 
 
 #---------------------------------------- Visualización:
