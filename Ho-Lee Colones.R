@@ -49,9 +49,10 @@ k <- d2/u2
 # Fijamos el tiempo a simular (35 años) en meses:
 tiempo <- 12*35
 
-# Fijamos los parámetros de la curva Nelson Siegel encontrada:
+# Fijamos los parámetros de la curva Nelson Siegel o Svensson encontrada:
 Par.NS <- c(8.337060e-03, TRI.corta-8.337060e-03, -3.330267e-12, 1.811465e+01)
 Par.SA <- c(6.253579e-03,-0.005212038,-2.791880e-05,6.6101177e-06,1.357261e+01,4.806624e+01)
+Svensson <- 1 # Parámetro que indica si el modelo utilizado es el Svensson (si es Nelson Siegel fijarlo como 0)
 
 # Fechas del periodo a simular:
 Fecha.Inicial <- as.Date("03/31/2020", format = '%m/%d/%Y')
@@ -60,7 +61,7 @@ Fecha.Final <- Fecha.Inicial+years(35)
 #---------------------------------------- Funciones del Modelo:
 
 # Función que genera el precio de la curva a un tiempo (Tao) dado:
-Precio <- function(tao,Svensson){
+Precio <- function(tao){
   if(tao == 0){
     precio = 1
   }else{
