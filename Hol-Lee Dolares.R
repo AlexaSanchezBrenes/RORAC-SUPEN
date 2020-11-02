@@ -155,7 +155,6 @@ Validacion.HL <- function(total.trayec){
 #---------------------------------------- Resultados:
 
 # Generamos la curva previamente encontrada:
-#Cero.Cupon.Esp <- vec.precios$Precio[1:(tiempo+1)]
 Cero.Cupon.Esp <- data.precios$Precio
 Cero.Cupon.Pro <- c(1,Validacion.HL(cant.simu))
 
