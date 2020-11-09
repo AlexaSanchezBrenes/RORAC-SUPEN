@@ -385,19 +385,6 @@ Y <- c(8.882375e-02, -2.275652e-03, -4.067703e-05,  3.147415e+01,  8.833481e+01)
 # Primer mes
 i <- 1 
 
-# Limite superior del eta_1:
-lim.n <- 60
-
-# Limite tasa larga:
-lim.tl <- log(20/100+1)/12
-
-# Limite beta1:
-lim.beta <- log(0.5+1)/12
-
-# Betas Iniciales:
-Beta2Inicial <- 0
-Beta3Inicial <- 0
-
 # Calculamos los Taus para cada cero cupón:
 Tau.aplicado <- bind_rows(lapply(split(Lista.Bonos[[i]], seq(nrow(Lista.Bonos[[i]]))), Tau.total))
 
@@ -417,6 +404,19 @@ toc()
 
 
 #---------------------------------------- Prueba para Optimizadores:
+
+# Limite superior del eta_1:
+lim.n <- 60
+
+# Limite tasa larga:
+lim.tl <- log(20/100+1)/12
+
+# Limite beta1:
+lim.beta <- log(0.5+1)/12
+
+# Betas Iniciales:
+Beta2Inicial <- 0
+Beta3Inicial <- 0
 
 ## Particle Swarm Optimization - Nelson Siegel
 

@@ -4,7 +4,6 @@
 
 # Autores:
 # Alexa Sánchez
-# Laura Campos
 # Isaac Z. Arias
 
 # En este módulo se utiliza el árbol binomial del modelo Ho-Lee de tasas de interes aplicado
