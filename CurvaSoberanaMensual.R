@@ -213,7 +213,13 @@ FuncionObjetivo.NS.Max <- function(X){
 }
 
 # Función que debe ser minimizada para estimar parámetros usando ponderación:
-FuncionObjetivo.NS.Pon <- function(B0, B1 = TRI.corta[i]-B0, B2, n1){
+FuncionObjetivo.NS.Pon <- function(X){
+  
+  # Redefinimos parámetros:
+  B0 <- X[1]
+  B1 <- TRI.corta[i]-B0
+  B2 <- X[2]
+  n1 <- X[3] 
   
   # Aplicamos a todo el dataframe y creamos los sumandos:
   DiferenciasPrecio.Pon <- Tau.aplicado %>% 
@@ -788,7 +794,8 @@ TIR <- function(fila){
   calculo.tir <- function(tir){
     fila$Precio[1]-sum((rep(fila$Tasa.facial[1],length(fila$Tau))+c(rep(0,length(fila$Tau)-1),1))*(1+tir)^(-fila$Tau/12))
   }
-  resultado <- nleqslv(0.05, calculo.tir)
+  resultado <- nleqslv(0.05, # Este es el valor inicial para la búsqueda de la tir.
+                       calculo.tir)
   fila <- fila %>% mutate(TIR = resultado$x)
   return(fila)
 }
