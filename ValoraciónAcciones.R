@@ -250,7 +250,7 @@ matriz.R <- t(as.matrix(matriz.R))
 #acc.clas <- cutree(acc.clas, k = cant.tit+1)
 
 # Se crean los conjuntos de eventos con clasificación por k-means:
-acc.clas <- kmeans(matriz.R, cant.tit+1, iter.max = 1000, nstart = 1000, algorithm = "Hartigan-Wong")$cluste
+acc.clas <- kmeans(matriz.R, cant.tit+1, iter.max = 1000, nstart = 1000, algorithm = "MacQueen")$cluste
 
 # Se aplica la nueva clasificación:
 matriz.R <- t(matriz.R)
