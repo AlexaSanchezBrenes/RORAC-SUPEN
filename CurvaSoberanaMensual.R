@@ -154,6 +154,12 @@ Tau.total <- function(fila){
   return(tabla)
 }
 
+# Primer mes para obtener el Tau Aplicado: 
+i <- 1 
+
+# Calculamos los Taus para cada cero cupón:
+Tau.aplicado <- bind_rows(lapply(split(Lista.Bonos[[i]], seq(nrow(Lista.Bonos[[i]]))), Tau.total))
+
 # Utilizando la versión original del modelo Nelson-Siegel:
 
 # Función que debe ser minimizada para estimar parámetros usando diferencia máxima:
@@ -207,13 +213,7 @@ FuncionObjetivo.NS.Max <- function(X){
 }
 
 # Función que debe ser minimizada para estimar parámetros usando ponderación:
-FuncionObjetivo.NS.Pon <- function(X){
-  
-  # Redefinimos parámetros:
-  B0 <- X[1]
-  B1 <- TRI.corta[i]-B0
-  B2 <- X[2]
-  n1 <- X[3] 
+FuncionObjetivo.NS.Pon <- function(B0, B1 = TRI.corta[i]-B0, B2, n1){
   
   # Aplicamos a todo el dataframe y creamos los sumandos:
   DiferenciasPrecio.Pon <- Tau.aplicado %>% 
@@ -382,11 +382,6 @@ FuncionObjetivo.SA.Pon <- function(X){
 X <- c(0.1109,	5,	0.05695203)
 Y <- c(8.882375e-02, -2.275652e-03, -4.067703e-05,  3.147415e+01,  8.833481e+01)
 
-# Primer mes
-i <- 1 
-
-# Calculamos los Taus para cada cero cupón:
-Tau.aplicado <- bind_rows(lapply(split(Lista.Bonos[[i]], seq(nrow(Lista.Bonos[[i]]))), Tau.total))
 
 # Prueba:
 tic()
