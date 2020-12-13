@@ -91,7 +91,7 @@ Precio <- function(tao){
 }
 
 # Función del parámetro de bajada:
-d.t = function(t, p, k){ 
+d.t = function(t, p, k){
   (k^(t-1))/((1 - p)*(k^(t-1)) + p)
 } 
 
