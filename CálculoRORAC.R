@@ -1031,7 +1031,6 @@ Resultados.rorac <- rbind(Resultados.rorac, c("Mercado", val.portafolio.hoy, REN
 # visualizamos los resultados:
 graf.rorac <- ggplot(Resultados.rorac %>% filter(!Entidad == "Mercado")) +
   geom_point(aes(x = seq(0,0.2, 0.2/(nrow(Resultados.rorac)-2)), y=100*as.numeric(RORAC),color=Entidad), size=3) +
-  #geom_text(aes(label = Entidad),nudge_x = 0.1) +
   geom_text(data = Resultados.rorac %>% filter(Entidad == "Mercado"), 
             aes(x = 0, y=100*as.numeric(RORAC),label = Entidad), color = "red",nudge_x = 0.19, nudge_y = 0.9) +
   xlim(0,0.2) +
@@ -1043,6 +1042,18 @@ graf.rorac <- ggplot(Resultados.rorac %>% filter(!Entidad == "Mercado")) +
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank()) +
   ylab("RORAC (%)") 
-
 graf.rorac
 
+# Visualizamos la Frontera Eficiente:
+graf.efi <- ggplot(Resultados.rorac %>% filter(!Entidad == "Mercado"), aes(x = CVaR, y = 100*round(as.numeric(Rendimiento),2))) +
+  geom_point(aes(color = Entidad), size=3) +
+theme(axis.text.x=element_blank(),
+      axis.ticks.x=element_blank()) +
+  ylab("Rendimiento (%)") +
+  xlab("CVaR") +
+  geom_text(data = Resultados.rorac %>% filter(Entidad == "Mercado"),
+            aes(x = CVaR, y=100*as.numeric(RORAC),label = Entidad),
+            color = "black", nudge_y = 4) +
+  geom_point(data = Resultados.rorac %>% filter(Entidad == "Mercado"),
+            aes(x = CVaR, y=100*as.numeric(RORAC)))
+graf.efi
