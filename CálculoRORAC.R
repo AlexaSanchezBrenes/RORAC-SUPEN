@@ -120,7 +120,7 @@ rm(tabla,titulos.viejos,titulos.nuevos,titulos)
 ACCIONES <- ACCIONES %>% mutate(FEC_DAT=as.Date(FEC_DAT)) %>% 
   left_join(tipo.Cambio.hist, by = c("FEC_DAT" = "Fecha")) %>% 
   mutate(Precio = ifelse(COD_MON==2, (VAL_MER/`TIPO CAMBIO COMPRA`)/VAL_FAC, VAL_MER/VAL_FAC)) %>% 
-  mutate(Precio = ifelse(VEC_PRE_MON ==0, Precio, VEC_PRE_MON))
+  mutate(Precio = ifelse(VEC_PRE_MON ==0 || is.na(VEC_PRE_MON), Precio, VEC_PRE_MON))
 
 ####################################################################################
 
@@ -169,7 +169,6 @@ Svensson <- 1
 # Curva Soberana del Tesoro de Estados Unidos
 
 # Historial de curvas soberanas del Tesoro:
-setwd("C:/Users/Laura/Documents/RORAC-SUPEN")
 Curvas.Tes <- read_excel("tnc_18_22.xls", col_names = FALSE, skip = 5) %>% filter_all(any_vars(!is.na(.)))
 Curvas.Tes <- Curvas.Tes[, -c(1,2)]
 nom.col.i <- ymd(paste0("20",str_sub("tnc_18_22.xls", start = 5, end = 6),"-", "01","-","01"))
