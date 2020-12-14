@@ -1023,19 +1023,20 @@ for(reg in Entidades){
 
 # se crean los datos finales:
 Resultados.rorac <- data.frame(Entidad = Entidades, Valor = valorhoy, Rendimiento = rendimientos, CVaR = cvars, RORAC = roracs) %>%
-  arrange(RORAC)
+  arrange(RORAC) 
 
 # Agregamos la información general:
-Resultados.rorac <- rbind(Resultados.rorac, c("Mercado", val.portafolio.hoy, REND.G, CVAR.G, RORAC.G))
+Resultados.rorac <- rbind(Resultados.rorac, c("Mercado", val.portafolio.hoy, REND.G, CVAR.G, RORAC.G)) %>% 
+  mutate(RORAC=100*round(as.numeric(RORAC),2), Rendimiento=100*round(as.numeric(Rendimiento),2))
 
 # visualizamos los resultados:
 graf.rorac <- ggplot(Resultados.rorac %>% filter(!Entidad == "Mercado")) +
-  geom_point(aes(x = seq(0,0.2, 0.2/(nrow(Resultados.rorac)-2)), y=100*as.numeric(RORAC),color=Entidad), size=3) +
+  geom_point(aes(x = seq(0,0.2, 0.2/(nrow(Resultados.rorac)-2)), y=RORAC,color=Entidad), size=3) +
   geom_text(data = Resultados.rorac %>% filter(Entidad == "Mercado"), 
-            aes(x = 0, y=100*as.numeric(RORAC),label = Entidad), color = "red",nudge_x = 0.19, nudge_y = 0.9) +
+            aes(x = 0, y=RORAC,label = Entidad), color = "red",nudge_x = 0.19, nudge_y = 0.9) +
   xlim(0,0.2) +
   theme_bw() +
-  ylim(100*as.numeric(min(Resultados.rorac$RORAC))*(1-0.5),100*as.numeric(max(Resultados.rorac$RORAC))*(1+0.5)) +
+  ylim(as.numeric(min(Resultados.rorac$RORAC))*(1-0.5),as.numeric(max(Resultados.rorac$RORAC))*(1+0.5)) +
   geom_hline(yintercept= 100*RORAC.G, 
              linetype="dashed", color = "red") +
   theme(axis.title.x=element_blank(),
@@ -1045,15 +1046,15 @@ graf.rorac <- ggplot(Resultados.rorac %>% filter(!Entidad == "Mercado")) +
 graf.rorac
 
 # Visualizamos la Frontera Eficiente:
-graf.efi <- ggplot(Resultados.rorac %>% filter(!Entidad == "Mercado"), aes(x = CVaR, y = 100*round(as.numeric(Rendimiento),2))) +
+graf.efi <- ggplot(Resultados.rorac %>% filter(!Entidad == "Mercado"), aes(x = CVaR, y = Rendimiento)) +
   geom_point(aes(color = Entidad), size=3) +
 theme(axis.text.x=element_blank(),
       axis.ticks.x=element_blank()) +
   ylab("Rendimiento (%)") +
   xlab("CVaR") +
   geom_text(data = Resultados.rorac %>% filter(Entidad == "Mercado"),
-            aes(x = CVaR, y=100*as.numeric(RORAC),label = Entidad),
+            aes(x = CVaR, y=RORAC,label = Entidad),
             color = "black", nudge_y = 4) +
   geom_point(data = Resultados.rorac %>% filter(Entidad == "Mercado"),
-            aes(x = CVaR, y=100*as.numeric(RORAC)))
+            aes(x = CVaR, y=RORAC))
 graf.efi
