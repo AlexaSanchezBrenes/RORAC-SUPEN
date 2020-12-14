@@ -17,6 +17,7 @@ library(stringr)
 library(tictoc)
 library(tidyr)
 library(purrr)
+library(ggplot2)
 library(wrMisc)
 library(ClustImpute)
 library(nleqslv)
@@ -928,4 +929,120 @@ ACCIONES.RESULTADOS <- ACCIONES %>% filter(FEC_DAT==exa.fec, COD_ISIN%in%row.nam
 
 #---------------------------------------- RORAC:
 
+# RORAC General:
+
+# se define el nivel de confianza:
+confianza <- 1/100
+
+# Se calcula el valor del protafolio hoy:
+val.portafolio.hoy <- sum(BONOS.TF.RESULTADOS$PRECIO_TEORICO_0*BONOS.TF.RESULTADOS$VAL_FAC) +
+  sum(BONOS.TV.RESULTADOS$PRECIO_TEORICO_0*BONOS.TV.RESULTADOS$VAL_FAC) +
+  sum(ACCIONES.RESULTADOS$VAL_FAC*ACCIONES.RESULTADOS$Precio)
+
+# Se calculan los valores del protafolio futuro:
+bonos.tf.fut <- colSums(matrix(rep(BONOS.TF.RESULTADOS$VAL_FAC, ncol(BONOS.TF.RESULTADOS)-4), 
+                       nrow = nrow(BONOS.TF.RESULTADOS))*as.matrix(BONOS.TF.RESULTADOS[,-(1:4)]))
+
+bonos.tv.fut <- colSums(matrix(rep(BONOS.TV.RESULTADOS$VAL_FAC, ncol(BONOS.TV.RESULTADOS)-4), 
+                               nrow = nrow(BONOS.TV.RESULTADOS))*as.matrix(BONOS.TV.RESULTADOS[,-(1:4)]))
+
+acciones.fut <- colSums(matrix(rep(ACCIONES.RESULTADOS$Precio, ncol(ACCIONES.RESULTADOS)-4), 
+                                     nrow = nrow(ACCIONES.RESULTADOS))*apply(as.matrix(ACCIONES.RESULTADOS[,-(1:4)]),2,as.numeric))
+
+# Rendimiento del portafolio promedio:
+REND.G <- (mean(acciones.fut+bonos.tf.fut+bonos.tv.fut)-val.portafolio.hoy)/val.portafolio.hoy
+
+# CVAR del valor del protafolio futuro:
+CVAR.G <- mean(sort(acciones.fut+bonos.tf.fut+bonos.tv.fut)[(cant.simu*(1-confianza)):cant.simu])
+
+# RORAC del protafolio:
+RORAC.G <- (mean(acciones.fut+bonos.tf.fut+bonos.tv.fut)-val.portafolio.hoy)/(val.portafolio.hoy+CVAR.G)
+
+# RORAC por entidad:
+
+# Se dan las entidades observadas:
+Entidades <- c(BONOS.TF.RESULTADOS$COD_ENT,BONOS.TV.RESULTADOS$COD_ENT, ACCIONES.RESULTADOS$COD_ENT) %>% unique()
+rendimientos <- c()
+roracs <- c()
+cvars <- c()
+valorhoy <- c()
+cont <- 1
+
+
+for(reg in Entidades){
+
+  # se segrega el protafolio
+  bonos.tf.reg <- BONOS.TF.RESULTADOS %>% filter(COD_ENT==reg)
+  bonos.tv.reg <- BONOS.TV.RESULTADOS %>% filter(COD_ENT==reg)
+  accion.reg <- ACCIONES.RESULTADOS %>% filter(COD_ENT==reg)
+  
+  # Se calcula el valor del protafolio hoy:
+  val.portafolio.hoy.reg <- sum(bonos.tf.reg$PRECIO_TEORICO_0*bonos.tf.reg$VAL_FAC) +
+    sum(bonos.tv.reg$PRECIO_TEORICO_0*bonos.tv.reg$VAL_FAC) +
+    sum(accion.reg$VAL_FAC*accion.reg$Precio)
+  
+  # Se calculan los valores del protafolio futuro:
+  bonos.tf.fut.reg <- colSums(matrix(rep(bonos.tf.reg$VAL_FAC, ncol(bonos.tf.reg)-4), 
+                                 nrow = nrow(bonos.tf.reg))*as.matrix(bonos.tf.reg[,-(1:4)]))
+  
+  bonos.tv.fut.reg <- colSums(matrix(rep(bonos.tv.reg$VAL_FAC, ncol(bonos.tv.reg)-4), 
+                                 nrow = nrow(bonos.tv.reg))*as.matrix(bonos.tv.reg[,-(1:4)]))
+  
+  acciones.fut.reg <- colSums(matrix(rep(accion.reg$Precio, ncol(accion.reg)-4), 
+                                 nrow = nrow(accion.reg))*apply(as.matrix(accion.reg[,-(1:4)]),2,as.numeric))
+  
+  # Se corrigen en caso de ausencia:
+  if(length(acciones.fut.reg)==0){
+    acciones.fut.reg <- 0
+  }
+  if(length(bonos.tv.fut.reg)==0){
+    bonos.tv.fut.reg <- 0
+  }
+  if(length(bonos.tf.fut.reg)==0){
+    bonos.tf.fut.reg <- 0
+  }
+  
+  # Rendimiento del portafolio promedio:
+  REND.reg <- (mean(acciones.fut.reg+bonos.tf.fut.reg+bonos.tv.fut.reg)-val.portafolio.hoy.reg)/val.portafolio.hoy.reg
+  
+  # CVAR del valor del protafolio futuro:
+  CVAR.reg <- mean(sort(acciones.fut.reg+bonos.tf.fut.reg+bonos.tv.fut.reg)[(cant.simu*(1-confianza)):cant.simu])
+  
+  # RORAC del protafolio:
+  RORAC.reg <- (mean(acciones.fut.reg+bonos.tf.fut.reg+bonos.tv.fut.reg)-val.portafolio.hoy.reg)/(val.portafolio.hoy.reg+CVAR.reg)
+  
+  #guardamos la información:
+  cvars[cont] <- CVAR.reg
+  rendimientos[cont] <- REND.reg
+  valorhoy[cont] <- val.portafolio.hoy.reg
+  roracs[cont] <- RORAC.reg
+  
+  # contador:
+  cont <- cont+1
+}
+
+# se crean los datos finales:
+Resultados.rorac <- data.frame(Entidad = Entidades, Valor = valorhoy, Rendimiento = rendimientos, CVaR = cvars, RORAC = roracs) %>%
+  arrange(RORAC)
+
+# Agregamos la información general:
+Resultados.rorac <- rbind(Resultados.rorac, c("Mercado", val.portafolio.hoy, REND.G, CVAR.G, RORAC.G))
+
+# visualizamos los resultados:
+graf.rorac <- ggplot(Resultados.rorac %>% filter(!Entidad == "Mercado")) +
+  geom_point(aes(x = seq(0,0.2, 0.2/(nrow(Resultados.rorac)-2)), y=100*as.numeric(RORAC),color=Entidad), size=3) +
+  #geom_text(aes(label = Entidad),nudge_x = 0.1) +
+  geom_text(data = Resultados.rorac %>% filter(Entidad == "Mercado"), 
+            aes(x = 0, y=100*as.numeric(RORAC),label = Entidad), color = "red",nudge_x = 0.19, nudge_y = 0.9) +
+  xlim(0,0.2) +
+  theme_bw() +
+  ylim(100*as.numeric(min(Resultados.rorac$RORAC))*(1-0.5),100*as.numeric(max(Resultados.rorac$RORAC))*(1+0.5)) +
+  geom_hline(yintercept= 100*RORAC.G, 
+             linetype="dashed", color = "red") +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  ylab("RORAC (%)") 
+
+graf.rorac
 
