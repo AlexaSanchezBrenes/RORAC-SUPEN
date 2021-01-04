@@ -404,10 +404,7 @@ toc() # 11.57
 
 Optimizacion.TV <- data.frame(matrix(unlist(Optimizacion.TV), nrow=length(Optimizacion.TV), byrow=T))
 colnames(Optimizacion.TV)<-c(colnames(BONOS.TV.RESUMEN),"Parametro","Error")
-# SOLUCIONAR TEMA DE PRECIOS (OJO PONERLO EN EL REPORTE) 
 
-
-# INCLUIR TV? :/
 BONOS.TV <- left_join(BONOS.TV,Optimizacion.TV[,c("COD_ISIN","Parametro")])
 
 
