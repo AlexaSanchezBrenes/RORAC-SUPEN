@@ -84,7 +84,8 @@ titulos.nuevos <- tabla[14:26]
 titulos.viejos <- do.call("rbind", titulos.viejos)
 titulos.nuevos <- do.call("rbind", titulos.nuevos)
 titulos.viejos <- titulos.viejos %>% select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR,FEC_VEN,COD_ISIN,TAS_FAC,PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,COD_FON)
-titulos.nuevos <- titulos.nuevos %>% select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,COD_FON)
+titulos.viejos <- cbind(titulos.viejos,rep('NA',nrow(titulos.viejos)))
+titulos.nuevos <- titulos.nuevos %>% select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,COD_FON,ES_REDE)
 colnames(titulos.viejos) <- colnames(titulos.nuevos)
 
 titulos.viejos <- titulos.viejos %>% filter(COD_ISIN %in% unique(titulos.nuevos$COD_ISIN)) # Se pierden 311 074 obs
@@ -106,17 +107,17 @@ titulos <- titulos %>% mutate(COD_MOD_INV =
 titulos <- titulos %>% filter(COD_MOD_INV != 'RE')
 
 # Filtramos los títulos que corresponden a bonos
-BONOS <- titulos %>% select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI) %>%
+BONOS <- titulos %>% select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,ES_REDE) %>%
   filter(!is.na(TIP_PER),!is.na(VAL_FAC),!is.na(FEC_VEN)) %>% mutate(PRECIO=VAL_MER/VAL_FAC)
 BONOS.PER.NA <- titulos %>% filter(COD_MOD_INV %in% c("DE","D1","D2","D3","DI","IE"),is.na(TIP_PER),!is.na(VAL_FAC),!is.na(FEC_VEN)) %>%
-  select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI) %>%
+  select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,ES_REDE) %>%
   mutate(TIP_PER=0) %>% mutate(PRECIO=VAL_MER/VAL_FAC)
 
 BONOS <- rbind(BONOS,BONOS.PER.NA)
 ACCIONES <- titulos %>% filter(!(COD_ISIN %in% unique(BONOS$COD_ISIN))) #Tienen fecha de vencimiento - Ponerlo en el brete escrito 
 rm(tabla,titulos.viejos,titulos.nuevos,titulos)
 
-# Se agregan los tipod de cambio del BCCR:
+# Se agregan los tipos de cambio del BCCR:
 ACCIONES <- ACCIONES %>% mutate(FEC_DAT=as.Date(FEC_DAT)) %>% 
   left_join(tipo.Cambio.hist, by = c("FEC_DAT" = "Fecha")) %>% 
   mutate(Precio = ifelse(COD_MON==2, (VAL_MER/`TIPO CAMBIO COMPRA`)/VAL_FAC, VAL_MER/VAL_FAC)) %>% 
@@ -139,8 +140,10 @@ Tau <- function(t, Te) {
   as.double(12 * (ed$year - sd$year) + (ed$mon - sd$mon) + day(ed)/days_in_month(ed) - day(sd)/days_in_month(sd))
 }
 
+
+BONOS <- BONOS %>% mutate(PRECIO=ifelse(PRECIO>400,VEC_PRE_POR/100,PRECIO))
+BONOS.TODO <- BONOS
 BONOS <- BONOS %>% filter(year(FEC_DAT)==anno & month(FEC_DAT)==mes) %>% filter(Tau(FEC_DAT,FEC_VEN)>=Periodo)
-BONOS <- BONOS %>% mutate(PRECIO=ifelse(PRECIO>500,VEC_PRE_POR/100,PRECIO)) #INDICAR EN REPORTE QUE DEBEN CORREGIR VEC_PRE_POR
 
 
 BONOS.TV <- BONOS %>% filter(MAR_FIJ!=0 | COD_INS %in% c('bemv')) 
@@ -148,13 +151,137 @@ BONOS.TF <- BONOS %>% filter(!(COD_ISIN %in% unique(BONOS.TV$COD_ISIN)))
 BONOS.TF <- BONOS.TF %>% filter(!is.na(TAS_FAC), TAS_FAC!=0) #Filtramos bonos tasa fija que no tienen tasa facial (Son DI o D2)
 
 
+
+Fecha.Inicial <- as.Date(paste0(mes,"/01/",anno), format = '%m/%d/%Y')
+TC <- 579.5 # Tipo de cambio de compra al cierre del mes a valorar 
+
+Fecha.Final <- max(BONOS$FEC_VEN)
+tiempo <- ceiling(Tau(Fecha.Inicial,Fecha.Final))
+
+Inflacion <- rep(0.05,times=tiempo)
+Inflacion <- as.data.frame(cbind(0:(tiempo-1),Inflacion))
+colnames(Inflacion) <- c("Tau","Inflacion")
+
+Inflacion_Interp <- function(tau){
+  return(approxfun(Inflacion$Tau,Inflacion$Inflacion)(tau))
+}
+
+
+##### CÁLCULO DE CURVA PAR ***
+
+
+TIR.TF <- function(fila){
+    if(fila[,"COD_INS"] %in% c("tudes","TUDES")){
+      # Creamos el Tau del ponderador:
+      if(fila[,"TIP_PER"]==0){
+        tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
+                                  Fecha.Pago = FEC_VEN,Pago=1+(1+Inflacion_Interp(tau))*TAS_FAC/100)
+      }else{
+        Taus <- seq.Date(from = as.Date(fila[,"FEC_VEN"]),
+                         to = as.Date(fila[,"FEC_DAT"]),
+                         by = paste(as.character(-12/fila[,"TIP_PER"]),"months",sep=" "))
+        tabla <- fila[rep(seq_len(nrow(fila)), each = length(Taus)), ] %>% mutate(Fecha.Pago = Taus) %>% 
+          mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+(1+Inflacion_Interp(tau))*TAS_FAC/100,(1+Inflacion_Interp(tau))*TAS_FAC/100))
+      }
+    } else if(fila[,"TIP_PER"]==0){
+      tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
+                                Fecha.Pago = FEC_VEN,Pago=1+TAS_FAC/100)
+    }else{
+      Taus <- seq.Date(from = as.Date(fila[,"FEC_VEN"]),
+                       to = as.Date(fila[,"FEC_DAT"]),
+                       by = paste(as.character(-12/fila[,"TIP_PER"]),"months",sep=" "))
+      tabla <- fila[rep(seq_len(nrow(fila)), each = length(Taus)), ] %>% mutate(Fecha.Pago = Taus) %>% 
+        mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+TAS_FAC/100,TAS_FAC/100))
+    }
+    
+    TIR<-function(tasa){
+      tabla<-tabla %>% mutate(desc=(1+tasa)^-tau) %>% mutate(Pago_desc=Pago*desc)
+      1-sum(tabla$Pago_desc)
+    }
+    
+    Opt<-nleqslv(0,TIR)
+    return(cbind(fila,TIR=Opt$x))
+    
+}
+
+BONOS.TF.RESUMEN<- BONOS.TF %>% distinct(COD_ISIN,TIP_PER,FEC_DAT,FEC_VEN,TAS_FAC,COD_INS)
+
+tic()
+BONOS.TF2<-lapply(split(BONOS.TF.RESUMEN,seq(nrow(BONOS.TF.RESUMEN))),TIR.TF)
+toc() #42.03 sec
+
+
+
+BONOS.TF2<- data.frame(matrix(unlist(BONOS.TF2), nrow=length(BONOS.TF2), byrow=T))
+colnames(BONOS.TF2)<-c(colnames(BONOS.TF.RESUMEN),'TIR')
+BONOS.TF2 <- BONOS.TF2 %>% mutate(TAS_FAC=as.numeric(TAS_FAC),TIP_PER=as.numeric(TIP_PER),TIR=as.numeric(TIR))
+
+BONOS.TF <- left_join(BONOS.TF,BONOS.TF2)
+
+
+
+
+##### TASA VARIABLE ##################
+
+Tasas <- data.frame(Tau=0:(tiempo-1),Tasa=rep(0.05,times=tiempo))
+
+curva.tasas <- list(Tasa=Tasas)
+curva.tasas <- rep(curva.tasas,times=length(unique(BONOS.TV$COD_INS)))
+names(curva.tasas)<-unique(BONOS.TV$COD_INS)
+
+
+
+
+Cupones.variables <- function(tau,nemotec){
+  tasa<-approxfun(curva.tasas[[nemotec]]$Tau,curva.tasas[[nemotec]]$Tasa)(tau)
+  return(tasa)
+}
+
+V_Cupones.variables <- Vectorize(Cupones.variables)
+
+
+TIR.TV <- function(fila){
+  # Creamos el Tau del ponderador:
+  if(fila[,"TIP_PER"]==0){
+    tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN)) %>%
+      mutate(Fecha.Pago = FEC_VEN,Pago=1+(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100)
+  }else{
+    Taus <- seq.Date(from = as.Date(fila[,"FEC_VEN"]),
+                     to = as.Date(fila[,"FEC_DAT"]),
+                     by = paste(as.character(-12/fila[,"TIP_PER"]),"months",sep=" "))
+    tabla <- fila[rep(seq_len(nrow(fila)), each = length(Taus)), ] %>% mutate(Fecha.Pago = Taus) %>% 
+      mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100,(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100))
+  }
+  
+  TIR<-function(tasa){
+    tabla<-tabla %>% mutate(desc=(1+tasa)^-tau) %>% mutate(Pago_desc=Pago*desc)
+    1-sum(tabla$Pago_desc)
+  }
+  
+  Opt<-nleqslv(0,TIR)
+  return(cbind(fila,TIR=Opt$x))
+  
+}
+
+BONOS.TV.RESUMEN<- BONOS.TV %>% distinct(COD_ISIN,FEC_DAT,FEC_VEN,COD_INS,TIP_PER,MAR_FIJ)
+
+
+tic()
+BONOS.TV2<-lapply(split(BONOS.TV.RESUMEN,seq(nrow(BONOS.TV.RESUMEN))),TIR.TV)
+toc() #4.47 sec
+
+BONOS.TV2 <- data.frame(matrix(unlist(BONOS.TV2), nrow=length(BONOS.TV2), byrow=T))
+colnames(BONOS.TV2)<-c(colnames(BONOS.TV.RESUMEN),'TIR')
+
+BONOS.TV2 <- BONOS.TV2 %>% mutate(TIP_PER=as.numeric(TIP_PER),MAR_FIJ=as.numeric(MAR_FIJ),TIR=as.numeric(TIR))
+
+
+BONOS.TV <- left_join(BONOS.TV,BONOS.TV2)
+
+
 #---------------------------------------- Parámetros Generales:
 
 
-Fecha.Inicial <- as.Date(paste0(mes,"/01/",anno), format = '%m/%d/%Y')
-TC <- 579.5 # Tipo de cambio al cierre del mes a valorar (CONFIRMAR)
-
-Fecha.Final <- max(BONOS$FEC_VEN)
 
 # Tasa del primer vencimiento TRI en el primer mes observado (marzo):
 TRI.corta <- log(1+1.25/100/52)*52/12
@@ -194,7 +321,7 @@ data.tasas <- rbind(c(mean(Overnight$TasaS[which((month(Overnight$Fecha)==month(
 
 #---------------------------------------- Funciones del Modelo:
 
-tiempo <- ceiling(Tau(Fecha.Inicial,Fecha.Final))
+
 
 # Función para interpolar linealmente las tasas
 inter.lin.tasas <- function(puntos){
@@ -240,13 +367,6 @@ Precio <- function(tao,col_dol){
 
 V_Precio <- Vectorize(Precio) 
 
-Inflacion <- rep(0.05,times=tiempo)
-Inflacion <- as.data.frame(cbind(0:(tiempo-1),Inflacion))
-colnames(Inflacion) <- c("Tau","Inflacion")
-
-Inflacion_Interp <- function(tau){
-  return(approxfun(Inflacion$Tau,Inflacion$Inflacion)(tau))
-}
 
 
 
@@ -319,34 +439,12 @@ toc() # 28.35 sec
 Optimizacion.TF <- data.frame(matrix(unlist(Optimizacion.TF), nrow=length(Optimizacion.TF), byrow=T))
 colnames(Optimizacion.TF)<-c(colnames(BONOS.TF.RESUMEN),"Parametro","Error")
 Optimizacion.TF$Parametro<-as.numeric(Optimizacion.TF$Parametro)
-# SOLUCIONAR TEMA DE PRECIOS (OJO PONERLO EN EL REPORTE) 
+
 
 BONOS.TF <- left_join(BONOS.TF,Optimizacion.TF[,c("COD_ISIN","Parametro")])
 
 
-# Para bonos tasa variable que entre la curva de las tasas, (puntos) y nosotros interpolamos
-#Simulaciones de 10000 rorac 
-# calculo por entidad y total 
-
-
-
 ##### TASA VARIABLE ##################
-
-Tasas <- data.frame(Tau=0:(tiempo-1),Tasa=rep(0.05,times=tiempo))
-
-curva.tasas <- list(Tasa=Tasas)
-curva.tasas <- rep(curva.tasas,times=length(unique(BONOS.TV$COD_INS)))
-names(curva.tasas)<-unique(BONOS.TV$COD_INS)
-
-# METER UDES TF 
-
-
-Cupones.variables <- function(tau,nemotec){
-  tasa<-approxfun(curva.tasas[[nemotec]]$Tau,curva.tasas[[nemotec]]$Tasa)(tau)
-  return(tasa)
-}
-
-V_Cupones.variables <- Vectorize(Cupones.variables)
 
 
 # Función para calcular el precio teórico de cada bono considerando su riesgo crediticio:
@@ -404,9 +502,17 @@ toc() # 11.57
 
 Optimizacion.TV <- data.frame(matrix(unlist(Optimizacion.TV), nrow=length(Optimizacion.TV), byrow=T))
 colnames(Optimizacion.TV)<-c(colnames(BONOS.TV.RESUMEN),"Parametro","Error")
+<<<<<<< HEAD
 
 BONOS.TV <- left_join(BONOS.TV,Optimizacion.TV[,c("COD_ISIN","Parametro")])
+=======
 
+
+>>>>>>> fbda068c011ac5b6ee0cf2b2399bbbec845376cf
+
+
+BONOS.TV <- left_join(BONOS.TV,Optimizacion.TV[,c("COD_ISIN","Parametro")])
+BONOS.TV<-BONOS.TV %>% mutate(Parametro=as.numeric(Parametro))
 
 
 ########################  CÁLCULO DE PRECIO TEÓRICO INCLUYENDO EL RIESGO DE CRÉDITO ##############
@@ -435,7 +541,7 @@ PRECIO.TEORICO.TF2 <- function(fila){
   return(cbind(fila,Precio.Teorico))
 }
 
-BONOS.TF.RESUMEN<- BONOS.TF %>% distinct(COD_ISIN,TIP_PER,FEC_DAT,FEC_VEN,TAS_FAC,COD_MON,COD_EMI,Parametro)
+BONOS.TF.RESUMEN<- BONOS.TF %>% distinct(COD_ISIN,TIP_PER,FEC_DAT,FEC_VEN,TAS_FAC,COD_MON,COD_EMI,Parametro,ES_REDE)
 
 
 
@@ -447,9 +553,11 @@ toc() #6.22 sec
 PRECIO.TF <- data.frame(matrix(unlist(PRECIO.TF), nrow=length(PRECIO.TF), byrow=T))
 colnames(PRECIO.TF)<-c(colnames(BONOS.TF.RESUMEN),"PRECIO_TEORICO_0")
 
+
+
 BONOS.TF <- left_join(BONOS.TF,PRECIO.TF[,c('COD_ISIN','PRECIO_TEORICO_0')])
 BONOS.TF <- BONOS.TF %>% mutate(FACTOR_TC=ifelse(COD_MON==1,1,TC)) %>% mutate(PRECIO_TEORICO_0=as.numeric(PRECIO_TEORICO_0)) %>%
-  mutate(PRECIO_TEORICO_0=PRECIO_TEORICO_0*FACTOR_TC)
+ mutate(PRECIO_TEORICO_0=PRECIO_TEORICO_0*FACTOR_TC)
 
 ## TASA VARIABLE 
 PRECIO.TEORICO.TV2 <- function(fila){
@@ -474,7 +582,7 @@ PRECIO.TEORICO.TV2 <- function(fila){
 }
 
 
-BONOS.TV.RESUMEN<- BONOS.TV %>% distinct(COD_ISIN,TIP_PER,FEC_DAT,FEC_VEN,TAS_FAC,COD_MON,COD_EMI,COD_INS,MAR_FIJ, Parametro) %>%
+BONOS.TV.RESUMEN<- BONOS.TV %>% distinct(COD_ISIN,TIP_PER,FEC_DAT,FEC_VEN,TAS_FAC,COD_MON,COD_EMI,COD_INS,MAR_FIJ, Parametro,ES_REDE) %>%
   mutate(Parametro=as.numeric(Parametro))
 
 
@@ -485,7 +593,9 @@ PRECIO.TV <-lapply(split(BONOS.TV.RESUMEN,seq(nrow(BONOS.TV.RESUMEN))),PRECIO.TE
 toc() #2.55 sec
 
 PRECIO.TV <- data.frame(matrix(unlist(PRECIO.TV), nrow=length(PRECIO.TV), byrow=T))
-colnames(PRECIO.TV)<-c(colnames(BONOS.TV.RESUMEN),"PRECIO_TEORICO_0")
+colnames(PRECIO.TV)<-c(colnames(BONOS.TV.RESUMEN),"PRECIO_TEORICO_0") 
+
+
 
 BONOS.TV <- left_join(BONOS.TV,PRECIO.TV[,c('COD_ISIN','PRECIO_TEORICO_0')])
 BONOS.TV <- BONOS.TV %>% mutate(FACTOR_TC=ifelse(COD_MON==1,1,TC)) %>% mutate(PRECIO_TEORICO_0=as.numeric(PRECIO_TEORICO_0)) %>%
@@ -531,10 +641,14 @@ Par.SA <- c(6.253579e-03,-0.005212038,-2.791880e-05,6.6101177e-06,1.357261e+01,4
 Svensson <- 1 
 
 
+
+
+
+
 #---------------------------------------- Funciones del Modelo:
 
 # Función que genera el precio de la curva a un tiempo (Tao) dado:
-Precio <- function(tao){
+Precio_col <- function(tao){
   if(tao == 0){
     precio = 1
   }else{
@@ -571,8 +685,8 @@ d.t = function(t, p, k){
 Tasa.Corta.t = function(tao, cant_sub, p){
   
   # Se obtiene el precio de acuerdo a las curvas Nelson-Siegel-Svensson
-  P_0_t = Precio(tao)
-  P_0_T = Precio(tao + 1)
+  P_0_t = Precio_col(tao)
+  P_0_T = Precio_col(tao + 1)
   
   # Se obtiene la tasa corta mediante la fórmula.
   r_t = log(P_0_t/P_0_T) - log(d.t(tao + 1, p, k)) + cant_sub*log(k)
@@ -750,6 +864,7 @@ Tau.total.TF <- function(fila){
   Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico), nrow=length(Precio.Teorico), byrow=T))
   Precio.Teorico <- Precio.Teorico*tabla$Pago
   Precio.Teorico<- apply(Precio.Teorico,2,sum)
+   
   return(Precio.Teorico)
 }
     
@@ -757,7 +872,7 @@ Tau.total.TF <- function(fila){
     
 tic()  
 BONOS.TF.PRECIOS <-lapply(split(BONOS.TF.RESUMEN,seq(nrow(BONOS.TF.RESUMEN))),Tau.total.TF)
-toc() #288.34
+toc() #328.22
 BONOS.TF.PRECIOS <- data.frame(matrix(unlist(BONOS.TF.PRECIOS), nrow=length(BONOS.TF.PRECIOS), byrow=T))
     
 DEFAULT <- function(p){
@@ -772,7 +887,182 @@ BONOS.TF.PRECIOS <- BONOS.TF.PRECIOS*Bernoullis
 BONOS.TF.PRECIOS <- cbind(BONOS.TF.RESUMEN$COD_ISIN,BONOS.TF.PRECIOS)
 colnames(BONOS.TF.PRECIOS)[1] <- 'COD_ISIN'
     
+
+
+
+
+
+
+
 BONOS.TF.RESULTADOS <- right_join(BONOS.TF[,c('COD_ISIN','COD_ENT','VAL_FAC','PRECIO_TEORICO_0')],BONOS.TF.PRECIOS)
+
+
+### Ajuste a los bonos con redención anticipada
+
+RESUMEN.TF <- BONOS.TF %>% distinct(FEC_DAT,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,ES_REDE,TIR,Parametro,COD_INS)
+RESUMEN.TF <- RESUMEN.TF %>% filter(ES_REDE=='S')
+
+
+
+
+
+
+
+
+
+
+
+Redencion_TF <- function(fila){
+
+
+  Precio.gatillo<-function(fila,Contador){
+      if(fila[,"COD_INS"] %in% c("tudes","TUDES")){
+      # Creamos el Tau del ponderador:
+      if(fila[,"TIP_PER"]==0){
+        tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
+                                  Fecha.Pago = FEC_VEN,Pago=1+(1+Inflacion_Interp(tau))*TAS_FAC/100)
+      }else{
+        Taus <- seq.Date(from = as.Date(fila[,"FEC_VEN"]),
+                         to = as.Date(fila[,"FEC_DAT"]),
+                         by = paste(as.character(-12/fila[,"TIP_PER"]),"months",sep=" "))
+        tabla <- fila[rep(seq_len(nrow(fila)), each = length(Taus)), ] %>% mutate(Fecha.Pago = Taus) %>% 
+          mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+(1+Inflacion_Interp(tau))*TAS_FAC/100,(1+Inflacion_Interp(tau))*TAS_FAC/100))
+      }
+    } else if(fila[,"TIP_PER"]==0){
+      tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
+                                Fecha.Pago = FEC_VEN,Pago=1+TAS_FAC/100)
+    }else{
+      Taus <- seq.Date(from = as.Date(fila[,"FEC_VEN"]),
+                       to = as.Date(fila[,"FEC_DAT"]),
+                       by = paste(as.character(-12/fila[,"TIP_PER"]),"months",sep=" "))
+      
+      tabla <- fila[rep(seq_len(nrow(fila)), each = length(Taus)), ] %>% mutate(Fecha.Pago = Taus) %>% 
+        mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+TAS_FAC/100,TAS_FAC/100)) 
+      
+    }
+    tabla<- tabla %>% filter(Fecha.Pago>=Contador) %>%
+      mutate(desc = (1+as.numeric(fila[,'TIR']))^-(tau-Contador)) %>% mutate(Pago_desc=Pago*desc)
+    P_gatillo<-sum(tabla$Pago_des)  
+    return(P_gatillo)
+  }
+  
+  V_Precio.gatillo<-Vectorize(Precio.gatillo,"Contador")
+  P_gatillo<-V_Precio.gatillo(fila,1:(Periodo-1))
+  
+  
+
+  
+  Tau.total.TF_reden <- function(fila,Contador){
+    if(fila[,"TIP_PER"]==0){
+      tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
+                                Fecha.Pago = FEC_VEN,Pago=1+TAS_FAC/100)
+    }else{
+      Taus <- seq.Date(from = as.Date(fila[,"FEC_VEN"]),
+                       to = as.Date(fila[,"FEC_DAT"]),
+                       by = paste(as.character(-12/fila[,"TIP_PER"]),"months",sep=" "))
+      tabla <- fila[rep(seq_len(nrow(fila)), each = length(Taus)), ] %>% mutate(Fecha.Pago = Taus) %>% 
+        mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% filter(tau>=Contador) %>%
+        mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+TAS_FAC/100,TAS_FAC/100))
+    }
+    
+    FactDesc_reden <- function(fila){
+      if (fila[,'COD_MON'] == 1){
+        Factor<-Matriz.trayectorias.col[,floor(fila[,'tau'])]/Matriz.trayectorias.col[,Contador] 
+      }else{
+        Factor<-Matriz.trayectorias.dol[,floor(fila[,'tau'])]/Matriz.trayectorias.dol[,Contador] 
+      }
+      return(Factor)
+    }
+    
+    
+    Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc_reden)
+    Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico), nrow=length(Precio.Teorico), byrow=T))
+    Precio.Teorico <- Precio.Teorico*tabla$Pago
+    Precio.Teorico<- apply(Precio.Teorico,2,sum)
+    
+    return(Precio.Teorico)
+  }
+  
+  
+ 
+  data.frame<-as.data.frame(rep(NA,cant.simu))
+  colnames(data.frame)<-'Periodo_Venta'
+  
+  
+  Periodo_Venta1<-NA
+  k=1
+  while(k<=length(P_gatillo) & sum(is.na(Periodo_Venta1))>0){
+    data.frame<-data.frame %>% mutate(P1 = Tau.total.TF_reden(fila,k)) %>% mutate(P1<P_gatillo[k])
+    colnames(data.frame)<-c(colnames(data.frame)[-ncol(data.frame)],paste0('VENTA',k))
+    Periodo_Venta1<-ifelse(is.na(data.frame[,'Periodo_Venta']),ifelse(data.frame[,ncol(data.frame)]==TRUE,k,NA),data.frame[,'Periodo_Venta'])
+    data.frame <-data.frame %>% mutate(Periodo_Venta=Periodo_Venta1)
+    k=k+1
+  }
+  
+  if(sum(is.na(data.frame$Periodo_Venta))<nrow(data.frame)){
+    Precio1<-function(k,Contador){
+      if(is.na(Contador)){
+        PRECIO1<-NA
+      }else{
+        FactDesc_reden <- function(fila){
+          if (fila[,'COD_MON'] == 1){
+            Factor<-Matriz.trayectorias.col[k,floor(fila[,'tau'])]/Matriz.trayectorias.col[k,Periodo]
+          }else{
+            Factor<-Matriz.trayectorias.dol[k,floor(fila[,'tau'])]*TC/Matriz.trayectorias.col[k,Periodo]       }
+          return(Factor)
+        }
+        
+        Tau.total.TF_reden <- function(fila){
+          if(fila[,"TIP_PER"]==0){
+            tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
+                                      Fecha.Pago = FEC_VEN,Pago=1+TAS_FAC/100)
+          }else{
+            Taus <- seq.Date(from = as.Date(fila[,"FEC_VEN"]),
+                             to = as.Date(fila[,"FEC_DAT"]),
+                             by = paste(as.character(-12/fila[,"TIP_PER"]),"months",sep=" "))
+            tabla <- fila[rep(seq_len(nrow(fila)), each = length(Taus)), ] %>% mutate(Fecha.Pago = Taus) %>% 
+              mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% filter(tau>=Contador) %>%
+              mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+TAS_FAC/100,TAS_FAC/100))
+          }
+          
+          Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc_reden)
+          Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico), nrow=length(Precio.Teorico), byrow=T))
+          Precio.Teorico <- Precio.Teorico*tabla$Pago
+          Precio.Teorico<- sum(Precio.Teorico)
+          
+          return(Precio.Teorico)
+        }
+        
+         PRECIO1<-Tau.total.TF_reden(fila)*rbernoulli(1,exp(Contador*fila[,'Parametro']))
+        
+        
+      }
+      
+      return(PRECIO1)}
+    
+    V_Precio1<-Vectorize(Precio1,vectorize.args = c('k','Contador'))
+    
+    data.frame<-data.frame %>% mutate(k=1:nrow(data.frame)) %>% mutate(PRECIO1=V_Precio1(k,Periodo_Venta),PrecioInicial=t(as.matrix(BONOS.TF.RESULTADOS[which(BONOS.TF.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])[1],5:ncol(BONOS.TF.RESULTADOS)]))) %>%
+      mutate(PRECIOFINAL=ifelse(is.na(PRECIO1),PrecioInicial,PRECIO1))
+  
+  
+  
+  BONOS.TF.RESULTADOS[which(BONOS.TF.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']),5:ncol(BONOS.TF.RESULTADOS)]<-rep(data.frame$PRECIOFINAL,each=length(which(BONOS.TF.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])))   
+  }
+  
+}
+
+  
+    
+ 
+
+
+tic()
+for(j in 1:nrow(RESUMEN.TF)){
+  Redencion_TF(RESUMEN.TF[j,])
+}
+toc() # 172.09 sec
+
 
 ## PARTE VARIABLE
     
@@ -790,6 +1080,9 @@ Tau.total.TV <- function(fila){
         mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% filter(tau>=Periodo) %>%
         mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100,(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100))
     }
+  
+  
+ 
   Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc)
   Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico), nrow=length(Precio.Teorico), byrow=T))
   Precio.Teorico <- Precio.Teorico*tabla$Pago
@@ -811,8 +1104,340 @@ BONOS.TV.PRECIOS <- BONOS.TV.PRECIOS*Bernoullis
 BONOS.TV.PRECIOS <- cbind(BONOS.TV.RESUMEN$COD_ISIN,BONOS.TV.PRECIOS)
 colnames(BONOS.TV.PRECIOS)[1] <- 'COD_ISIN'
     
+
+
 BONOS.TV.RESULTADOS <- right_join(BONOS.TV[,c('COD_ISIN','COD_ENT','VAL_FAC','PRECIO_TEORICO_0')],BONOS.TV.PRECIOS,by = "COD_ISIN")
     
+
+## Redencion anticipada
+
+
+RESUMEN.TV <- BONOS.TV %>% distinct(FEC_DAT,FEC_VEN,COD_ISIN,MAR_FIJ,TIP_PER,COD_MON,ES_REDE,TIR,Parametro,COD_INS)
+RESUMEN.TV <- RESUMEN.TV %>% filter(ES_REDE=='S')
+
+
+
+Redencion_TV <- function(fila){
+  
+    Precio.gatillo<-function(fila,Contador){
+      
+      if(fila[,"TIP_PER"]==0){
+        tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN)) %>%
+          mutate(Fecha.Pago = FEC_VEN,Pago=1+(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100)
+      }else{
+        Taus <- seq.Date(from = as.Date(fila[,"FEC_VEN"]),
+                         to = as.Date(fila[,"FEC_DAT"]),
+                         by = paste(as.character(-12/fila[,"TIP_PER"]),"months",sep=" "))
+        tabla <- fila[rep(seq_len(nrow(fila)), each = length(Taus)), ] %>% mutate(Fecha.Pago = Taus) %>% 
+          mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100,(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100))
+      }
+      
+      tabla<- tabla %>% filter(Fecha.Pago>=Contador) %>%
+        mutate(desc = (1+as.numeric(fila[,'TIR']))^-(tau-Contador)) %>% mutate(Pago_desc=Pago*desc)
+      P_gatillo<-sum(tabla$Pago_des)  
+      
+      return(P_gatillo)
+    }
+    
+    V_Precio.gatillo<-Vectorize(Precio.gatillo,"Contador")
+    P_gatillo<-V_Precio.gatillo(fila,1:(Periodo-1))
+    
+    
+   
+    
+    Tau.total.TV_reden <- function(fila,Contador){
+      if(fila[,"TIP_PER"]==0){
+        tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
+                                  Fecha.Pago = FEC_VEN,Pago=1+(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100)
+      }else{
+        Taus <- seq.Date(from = as.Date(fila[,"FEC_VEN"]),
+                         to = as.Date(fila[,"FEC_DAT"]),
+                         by = paste(as.character(-12/fila[,"TIP_PER"]),"months",sep=" "))
+        tabla <- fila[rep(seq_len(nrow(fila)), each = length(Taus)), ] %>% mutate(Fecha.Pago = Taus) %>%
+          mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% filter(tau>=Contador) %>%
+          mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100,(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100))
+      }
+      
+      FactDesc_reden <- function(fila){
+        if (fila[,'COD_MON'] == 1){
+          Factor<-Matriz.trayectorias.col[,floor(fila[,'tau'])]/Matriz.trayectorias.col[,Contador] 
+        }else{
+          Factor<-Matriz.trayectorias.dol[,floor(fila[,'tau'])]/Matriz.trayectorias.dol[,Contador] 
+        }
+        return(Factor)
+      }
+      
+      Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc_reden)
+      Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico), nrow=length(Precio.Teorico), byrow=T))
+      Precio.Teorico <- Precio.Teorico*tabla$Pago
+      Precio.Teorico <- apply(Precio.Teorico,2,sum)
+      
+      return(Precio.Teorico)
+    }
+    
+      
+
+    data.frame<-as.data.frame(rep(NA,cant.simu))
+    colnames(data.frame)<-'Periodo_Venta'
+    
+    
+    Periodo_Venta1<-NA
+    k=1
+    while(k<=length(P_gatillo) & sum(is.na(Periodo_Venta1))>0){
+      data.frame<-data.frame %>% mutate(P1 = Tau.total.TV_reden(fila,k)) %>% mutate(P1<P_gatillo[k])
+      colnames(data.frame)<-c(colnames(data.frame)[-ncol(data.frame)],paste0('VENTA',k))
+      Periodo_Venta1<-ifelse(is.na(data.frame[,'Periodo_Venta']),ifelse(data.frame[,ncol(data.frame)]==TRUE,k,NA),data.frame[,'Periodo_Venta'])
+      data.frame <-data.frame %>% mutate(Periodo_Venta=Periodo_Venta1)
+      k=k+1
+    }
+    
+    if(sum(is.na(data.frame$Periodo_Venta))<nrow(data.frame)){
+      Precio1<-function(k,Contador){
+        if(is.na(Contador)){
+          PRECIO1<-NA
+        }else{
+          FactDesc_reden <- function(fila){
+            if (fila[,'COD_MON'] == 1){
+              Factor<-Matriz.trayectorias.col[k,floor(fila[,'tau'])]/Matriz.trayectorias.col[k,Periodo]
+            }else{
+              Factor<-Matriz.trayectorias.dol[k,floor(fila[,'tau'])]*TC/Matriz.trayectorias.col[k,Periodo]       }
+            return(Factor)
+          }
+          
+          Tau.total.TV_reden <- function(fila){
+            if(fila[,"TIP_PER"]==0){
+              tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
+                                        Fecha.Pago = FEC_VEN,Pago=1+(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100)
+            }else{
+              Taus <- seq.Date(from = as.Date(fila[,"FEC_VEN"]),
+                               to = as.Date(fila[,"FEC_DAT"]),
+                               by = paste(as.character(-12/fila[,"TIP_PER"]),"months",sep=" "))
+              tabla <- fila[rep(seq_len(nrow(fila)), each = length(Taus)), ] %>% mutate(Fecha.Pago = Taus) %>%
+                mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% filter(tau>=Contador) %>%
+                mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100,(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100))
+            }
+            
+            
+            Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc_reden)
+            Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico), nrow=length(Precio.Teorico), byrow=T))
+            Precio.Teorico <- Precio.Teorico*tabla$Pago
+            Precio.Teorico<- sum(Precio.Teorico)
+            
+            return(Precio.Teorico)
+          }
+            
+
+          
+          PRECIO1<-Tau.total.TV_reden(fila)*rbernoulli(1,exp(-Contador*fila[,'Parametro']))
+          
+          
+        }
+        
+        return(PRECIO1)}
+      
+      V_Precio1<-Vectorize(Precio1,vectorize.args = c('k','Contador'))
+      
+  
+      data.frame<-data.frame %>% mutate(k=1:nrow(data.frame)) %>% mutate(PRECIO1=V_Precio1(k,Periodo_Venta),PrecioInicial=t(as.matrix(BONOS.TV.RESULTADOS[which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])[1],5:ncol(BONOS.TV.RESULTADOS)]))) %>%
+        mutate(PRECIOFINAL=ifelse(is.na(PRECIO1),PrecioInicial,PRECIO1))
+       
+      
+      BONOS.TV.RESULTADOS[which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']),5:ncol(BONOS.TV.RESULTADOS)]<-rep(data.frame$PRECIOFINAL,each=length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])))   
+    }
+    
+  }
+  
+  
+
+tic()
+for(j in 1:nrow(RESUMEN.TV)){
+  Redencion_TV(RESUMEN.TV[j,])
+}
+toc() #240.41
+
+
+  
+  
+  
+########################################### BACKTESTING #######################################
+  
+  ##################### BONOS
+
+####### Parámetros ########
+
+
+Periodo_max <- 5 # Cantidad de periodos hacia adelante para hacer backtesting
+
+
+LISTA.RESULTADOS<-list()
+
+
+
+tic()  
+BONOS.TF.PRECIOS <-lapply(split(BONOS.TF.RESUMEN,seq(nrow(BONOS.TF.RESUMEN))),Tau.total.TF)
+toc() #310.43
+BONOS.TF.PRECIOS <- data.frame(matrix(unlist(BONOS.TF.PRECIOS), nrow=length(BONOS.TF.PRECIOS), byrow=T))
+
+
+Bernoullis.TF1 <- t(V_DEFAULT(exp(-BONOS.TF.RESUMEN$Parametro)))
+
+BONOS.TF.PRECIOS <- BONOS.TF.PRECIOS*Bernoullis.TF1
+BONOS.TF.PRECIOS <- cbind(BONOS.TF.RESUMEN$COD_ISIN,BONOS.TF.PRECIOS)
+colnames(BONOS.TF.PRECIOS)[1] <- 'COD_ISIN'
+
+BONOS.TF.RESULTADOS <- right_join(BONOS.TF[,c('COD_ISIN','COD_ENT','VAL_FAC','PRECIO_TEORICO_0')],BONOS.TF.PRECIOS)
+
+
+
+
+
+
+tic()  
+BONOS.TV.PRECIOS <-lapply(split(BONOS.TV.RESUMEN,seq(nrow(BONOS.TV.RESUMEN))),Tau.total.TV)
+toc() #89.67 sec
+BONOS.TV.PRECIOS <- data.frame(matrix(unlist(BONOS.TV.PRECIOS), nrow=length(BONOS.TV.PRECIOS), byrow=T))
+
+
+Bernoullis.TV1 <- t(V_DEFAULT(exp(-BONOS.TV.RESUMEN$Parametro))) # Probably corregir 
+
+BONOS.TV.PRECIOS <- BONOS.TV.PRECIOS*Bernoullis.TV1
+BONOS.TV.PRECIOS <- cbind(BONOS.TV.RESUMEN$COD_ISIN,BONOS.TV.PRECIOS)
+colnames(BONOS.TV.PRECIOS)[1] <- 'COD_ISIN'
+
+
+
+BONOS.TV.RESULTADOS <- right_join(BONOS.TV[,c('COD_ISIN','COD_ENT','VAL_FAC','PRECIO_TEORICO_0')],BONOS.TV.PRECIOS,by = "COD_ISIN")
+
+PRECIOS_OBS <- BONOS.TODO %>% filter(year(FEC_DAT)==anno, month(FEC_DAT)==mes) %>% select(COD_ISIN,COD_ENT,VAL_FAC,PRECIO)
+Bernoullis.TF2<-matrix(1,nrow = nrow(BONOS.TF.RESUMEN),ncol = cant.simu)
+Bernoullis.TV2<-matrix(1,nrow = nrow(BONOS.TV.RESUMEN),ncol = cant.simu)
+
+LISTA.RESULTADOS[[1]]<-list(PrecioTF1=BONOS.TF.RESULTADOS,PrecioTV1=BONOS.TV.RESULTADOS,PreciosObs=PRECIOS_OBS)
+
+tic()
+for(h in 2:Periodo_max){
+if(mes<12){
+    mes<-mes+1
+
+    tic()  
+    BONOS.TF.PRECIOS <-lapply(split(BONOS.TF.RESUMEN,seq(nrow(BONOS.TF.RESUMEN))),Tau.total.TF)
+    toc() #288.34 sec
+    BONOS.TF.PRECIOS <- data.frame(matrix(unlist(BONOS.TF.PRECIOS), nrow=length(BONOS.TF.PRECIOS), byrow=T))
+    
+    
+    Bernoullis.TF2<-Bernoullis.TF1*Bernoullis.TF2
+    Bernoullis.TF1 <- t(V_DEFAULT(exp(-BONOS.TF.RESUMEN$Parametro)))
+    
+    
+    BONOS.TF.PRECIOS <- BONOS.TF.PRECIOS*Bernoullis.TF1*Bernoullis.TF2
+    BONOS.TF.PRECIOS <- cbind(BONOS.TF.RESUMEN$COD_ISIN,BONOS.TF.PRECIOS)
+    colnames(BONOS.TF.PRECIOS)[1] <- 'COD_ISIN'
+    
+    
+    
+    
+    
+    
+    
+    
+    BONOS.TF.RESULTADOS <- right_join(BONOS.TF[,c('COD_ISIN','COD_ENT','VAL_FAC','PRECIO_TEORICO_0')],BONOS.TF.PRECIOS)
+    
+    
+    for(j in 1:nrow(RESUMEN.TF)){
+      Redencion_TF(RESUMEN.TF[j,])
+    }
+    
+    
+    tic()  
+    BONOS.TV.PRECIOS <-lapply(split(BONOS.TV.RESUMEN,seq(nrow(BONOS.TV.RESUMEN))),Tau.total.TV)
+    toc() #89.67 sec
+    BONOS.TV.PRECIOS <- data.frame(matrix(unlist(BONOS.TV.PRECIOS), nrow=length(BONOS.TV.PRECIOS), byrow=T))
+    
+    Bernoullis.TV2<-Bernoullis.TV1*Bernoullis.TV2
+    Bernoullis.TV1 <- t(V_DEFAULT(exp(-BONOS.TV.RESUMEN$Parametro))) 
+    
+    BONOS.TV.PRECIOS <- BONOS.TV.PRECIOS*Bernoullis.TV2*Bernoullis.TV1
+    BONOS.TV.PRECIOS <- cbind(BONOS.TV.RESUMEN$COD_ISIN,BONOS.TV.PRECIOS)
+    colnames(BONOS.TV.PRECIOS)[1] <- 'COD_ISIN'
+    
+    
+    
+    BONOS.TV.RESULTADOS <- right_join(BONOS.TV[,c('COD_ISIN','COD_ENT','VAL_FAC','PRECIO_TEORICO_0')],BONOS.TV.PRECIOS,by = "COD_ISIN")
+    
+    
+    for(j in 1:nrow(RESUMEN.TV)){
+      Redencion_TV(RESUMEN.TV[j,])
+    }
+    
+    PRECIOS_OBS <- BONOS.TODO %>% filter(year(FEC_DAT)==anno, month(FEC_DAT)==mes) %>% select(COD_ISIN,COD_ENT,VAL_FAC,PRECIO)
+    
+    LISTA.RESULTADOS[[h]]<-list(PrecioTF1=BONOS.TF.RESULTADOS,PrecioTV1=BONOS.TV.RESULTADOS,PreciosObs=PRECIOS_OBS)
+    
+} else{
+  mes<-1
+  anno<-anno+1
+  tic()  
+  BONOS.TF.PRECIOS <-lapply(split(BONOS.TF.RESUMEN,seq(nrow(BONOS.TF.RESUMEN))),Tau.total.TF)
+  toc() #288.34 sec
+  BONOS.TF.PRECIOS <- data.frame(matrix(unlist(BONOS.TF.PRECIOS), nrow=length(BONOS.TF.PRECIOS), byrow=T))
+  
+  
+  Bernoullis.TF2<-Bernoullis.TF1*Bernoullis.TF2
+  Bernoullis.TF1 <- t(V_DEFAULT(exp(-BONOS.TF.RESUMEN$Parametro)))
+  
+  
+  BONOS.TF.PRECIOS <- BONOS.TF.PRECIOS*Bernoullis.TF1*Bernoullis.TF2
+  BONOS.TF.PRECIOS <- cbind(BONOS.TF.RESUMEN$COD_ISIN,BONOS.TF.PRECIOS)
+  colnames(BONOS.TF.PRECIOS)[1] <- 'COD_ISIN'
+  
+  
+  
+  
+  
+  
+  
+  
+  BONOS.TF.RESULTADOS <- right_join(BONOS.TF[,c('COD_ISIN','COD_ENT','VAL_FAC','PRECIO_TEORICO_0')],BONOS.TF.PRECIOS)
+  
+  
+  for(j in 1:nrow(RESUMEN.TF)){
+    Redencion_TF(RESUMEN.TF[j,])
+  }
+  
+  
+  tic()  
+  BONOS.TV.PRECIOS <-lapply(split(BONOS.TV.RESUMEN,seq(nrow(BONOS.TV.RESUMEN))),Tau.total.TV)
+  toc() #89.67 sec
+  BONOS.TV.PRECIOS <- data.frame(matrix(unlist(BONOS.TV.PRECIOS), nrow=length(BONOS.TV.PRECIOS), byrow=T))
+  
+  Bernoullis.TV2<-Bernoullis.TV1*Bernoullis.TV2
+  Bernoullis.TV1 <- t(V_DEFAULT(exp(-BONOS.TV.RESUMEN$Parametro))) 
+  
+  BONOS.TV.PRECIOS <- BONOS.TV.PRECIOS*Bernoullis.TV2*as.numeric(Bernoullis.TV1)
+  BONOS.TV.PRECIOS <- cbind(BONOS.TV.RESUMEN$COD_ISIN,BONOS.TV.PRECIOS)
+  colnames(BONOS.TV.PRECIOS)[1] <- 'COD_ISIN'
+  
+  
+  
+  BONOS.TV.RESULTADOS <- right_join(BONOS.TV[,c('COD_ISIN','COD_ENT','VAL_FAC','PRECIO_TEORICO_0')],BONOS.TV.PRECIOS,by = "COD_ISIN")
+  
+  
+  for(j in 1:nrow(RESUMEN.TV)){
+    Redencion_TV(RESUMEN.TV[j,])
+  }
+  
+  PRECIOS_OBS <- BONOS.TODO %>% filter(year(FEC_DAT)==anno, month(FEC_DAT)==mes) %>% select(COD_ISIN,COD_ENT,VAL_FAC,PRECIO)
+  
+  LISTA.RESULTADOS[[h]]<-list(PrecioTF1=BONOS.TF.RESULTADOS,PrecioTV1=BONOS.TV.RESULTADOS,PreciosObs=PRECIOS_OBS)
+}
+}
+toc() # 2194.23 sec
+
+  
+  
+  
+  
+  
 #------------------------------------------ Modelo de Acciones:
 
 # Se inicializa la matriz R:
