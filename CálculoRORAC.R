@@ -1029,7 +1029,7 @@ RESUMEN.TF <- RESUMEN.TF %>% filter(ES_REDE=='S')
 
 #
 Redencion_TF <- function(fila){
-
+fila <- RESUMEN.TF[1,]
   #
   Precio.gatillo <- function(fila,Contador){
       if(fila[,"COD_INS"] %in% c("tudes","TUDES")){
@@ -1289,7 +1289,7 @@ RESUMEN.TV <- RESUMEN.TV %>% filter(ES_REDE=='S')
 #
 Redencion_TV <- function(fila){
   
-    Precio.gatillo<-function(fila,Contador){
+    Precio.gatillo <- function(fila,Contador){
       
       if(fila[,"TIP_PER"]==0){
         tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN)) %>%
@@ -1578,12 +1578,16 @@ row.names(Ini.pre) <- indexA
 simu.matriz <- matrix(row.names(matriz.R), ncol = 1)
 colnames(simu.matriz) <- "COD_ISIN"
 
-# se generan las simulaciones:
+# Inicialización de la lista para backtesting:
+ACCIONES.BACK.SIMU <- list()
+
+# Se generan las simulaciones:
 for(mesi in 1:cant.simu){
-  simu.matriz <- cbind(simu.matriz,
-                       (apply(matriz.R%*%rmultinom(Periodo, 1, prob.objetiva), 
-                              1, 
-                              prod)))
+  
+  ejec <- matriz.R%*%rmultinom(Periodo, 1, prob.objetiva)
+  ejec <- t(apply(ejec, 1, cumprod))
+  
+  simu.matriz <- cbind(simu.matriz, ejec[,Periodo])
   colnames(simu.matriz)[ncol(simu.matriz)] <- paste("simu",mesi)
 }
 
@@ -1879,12 +1883,16 @@ LISTA.RESULTADOS[[1]] <- list(PrecioTF1=BONOS.TF.RESULTADOS,
                               PrecioTV1=BONOS.TV.RESULTADOS,
                               PreciosObs=PRECIOS_OBS)
 
+# Inicializamos las variables de conteo:
+mes.back.bonos <- mes
+anno.back.bonos <- anno
+ 
 #
 for(h in 2:Periodo_max){
-  if(mes < 12){
+  if(mes.back.bonos < 12){
     
     #
-    mes <- mes+1
+    mes.back.bonos <- mes.back.bonos+1
     
     #
     BONOS.TF.PRECIOS <- lapply(split(BONOS.TF.RESUMEN,seq(nrow(BONOS.TF.RESUMEN))),
@@ -1953,7 +1961,7 @@ for(h in 2:Periodo_max){
     
     #
     PRECIOS_OBS <- BONOS.TODO %>% 
-      filter(year(FEC_DAT)==anno, month(FEC_DAT)==mes) %>% 
+      filter(year(FEC_DAT)==anno, month(FEC_DAT)==mes.back.bonos) %>% 
       select(COD_ISIN,COD_ENT,VAL_FAC,PRECIO)
     
     #
@@ -1963,8 +1971,8 @@ for(h in 2:Periodo_max){
     
     #
   } else{
-    mes<-1
-    anno<-anno+1
+    mes.back.bonos<-1
+    anno.back.bonos<-anno.back.bonos+1
     
     #
     BONOS.TF.PRECIOS <-lapply(split(BONOS.TF.RESUMEN,
@@ -2026,8 +2034,8 @@ for(h in 2:Periodo_max){
     }
     
     #
-    PRECIOS_OBS <- BONOS.TODO %>% filter(year(FEC_DAT)==anno,
-                                         month(FEC_DAT)==mes) %>% 
+    PRECIOS_OBS <- BONOS.TODO %>% filter(year(FEC_DAT)==anno.back.bonos,
+                                         month(FEC_DAT)==mes.back.bonos) %>% 
       select(COD_ISIN,COD_ENT,VAL_FAC,PRECIO)
     
     #
@@ -2039,5 +2047,6 @@ for(h in 2:Periodo_max){
 
 
 ################################ Acciones ####################################
+
 
 
