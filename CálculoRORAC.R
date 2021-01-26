@@ -45,9 +45,6 @@
 #                    - Portafolio Individual por Régimen
 #                         • Parámetros de Almacenamiento 
 #                         • Cálculo de RORACs
-#             5. Backtesting
-#                    - Bonos
-#                    - Acciones
 #
 #############################################################################
 
@@ -109,8 +106,6 @@ TC <- 579.5
 # Se define el nivel de confianza:
 confianza <- 1/100
 
-# Cantidad de periodos hacia adelante para hacer backtesting:
-Periodo_max <- 5 
 
 ############################## Carga de Datos ################################
 
@@ -1029,7 +1024,7 @@ RESUMEN.TF <- RESUMEN.TF %>% filter(ES_REDE=='S')
 
 #
 Redencion_TF <- function(fila){
-fila <- RESUMEN.TF[1,]
+
   #
   Precio.gatillo <- function(fila,Contador){
       if(fila[,"COD_INS"] %in% c("tudes","TUDES")){
@@ -1202,9 +1197,10 @@ fila <- RESUMEN.TF[1,]
     
     #
     BONOS.TF.RESULTADOS[which(BONOS.TF.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']),
-                        6:ncol(BONOS.TF.RESULTADOS)]<-rep(data.frame$PRECIOFINAL,
+                        6:ncol(BONOS.TF.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
                                                           each=length(which(BONOS.TF.RESULTADOS$COD_ISIN==
-                                                                              fila[,'COD_ISIN'])))   
+                                                                              fila[,'COD_ISIN']))),byrow = F,nrow = length(which(BONOS.TF.RESULTADOS$COD_ISIN==
+                                                                                                                                   fila[,'COD_ISIN'])))   
   }
   
 }
@@ -1447,8 +1443,8 @@ Redencion_TV <- function(fila){
        
       #
       BONOS.TV.RESULTADOS[which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']),
-                          6:ncol(BONOS.TV.RESULTADOS)]<-rep(data.frame$PRECIOFINAL,
-                                                            each=length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])))   
+                          6:ncol(BONOS.TV.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
+                                                            each=length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']))),byrow = F,nrow = length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])))   
   }
 }
 
@@ -1809,244 +1805,6 @@ graf.efi
 
 ##############################################################################
 
-
-                    #################################
-                    ###                           ###
-                    ###     6. Backtesting        ###
-                    ###                           ###
-                    #################################
-
-
-################################# Bonos ######################################
-
-
-# Lista de almacenamieto de resultados:
-LISTA.RESULTADOS <- list()
-
-#
-BONOS.TF.PRECIOS <-lapply(split(BONOS.TF.RESUMEN,
-                                seq(nrow(BONOS.TF.RESUMEN))),Tau.total.TF)
-
-#
-BONOS.TF.PRECIOS <- data.frame(matrix(unlist(BONOS.TF.PRECIOS),
-                                      nrow=length(BONOS.TF.PRECIOS), byrow=T))
-
-#
-Bernoullis.TF1 <- t(V_DEFAULT(exp(-BONOS.TF.RESUMEN$Parametro)))
-
-#
-BONOS.TF.PRECIOS <- BONOS.TF.PRECIOS*Bernoullis.TF1
-BONOS.TF.PRECIOS <- cbind(BONOS.TF.RESUMEN$COD_ISIN,BONOS.TF.PRECIOS)
-colnames(BONOS.TF.PRECIOS)[1] <- 'COD_ISIN'
-
-#
-BONOS.TF.RESULTADOS <- right_join(BONOS.TF[,c('COD_ISIN',
-                                              'COD_ENT',
-                                              'VAL_FAC',
-                                              'PRECIO_TEORICO_0')], 
-                                  BONOS.TF.PRECIOS, by = "COD_ISIN")
-
-#
-BONOS.TV.PRECIOS <-lapply(split(BONOS.TV.RESUMEN,seq(nrow(BONOS.TV.RESUMEN))),
-                          Tau.total.TV)
-
-#
-BONOS.TV.PRECIOS <- data.frame(matrix(unlist(BONOS.TV.PRECIOS),
-                                      nrow=length(BONOS.TV.PRECIOS),
-                                      byrow=T))
-
-#
-Bernoullis.TV1 <- t(V_DEFAULT(exp(-BONOS.TV.RESUMEN$Parametro)))
-
-#
-BONOS.TV.PRECIOS <- BONOS.TV.PRECIOS*Bernoullis.TV1
-BONOS.TV.PRECIOS <- cbind(BONOS.TV.RESUMEN$COD_ISIN,BONOS.TV.PRECIOS)
-colnames(BONOS.TV.PRECIOS)[1] <- 'COD_ISIN'
-
-#
-BONOS.TV.RESULTADOS <- right_join(BONOS.TV[,c('COD_ISIN',
-                                              'COD_ENT',
-                                              'VAL_FAC',
-                                              'PRECIO_TEORICO_0')],
-                                  BONOS.TV.PRECIOS,
-                                  by = "COD_ISIN")
-
-#
-PRECIOS_OBS <- BONOS.TODO %>% 
-  filter(year(FEC_DAT)==anno, month(FEC_DAT)==mes) %>% 
-  select(COD_ISIN,COD_ENT,VAL_FAC,PRECIO)
-Bernoullis.TF2 <- matrix(1,nrow = nrow(BONOS.TF.RESUMEN),ncol = cant.simu)
-Bernoullis.TV2 <- matrix(1,nrow = nrow(BONOS.TV.RESUMEN),ncol = cant.simu)
-
-#
-LISTA.RESULTADOS[[1]] <- list(PrecioTF1=BONOS.TF.RESULTADOS,
-                              PrecioTV1=BONOS.TV.RESULTADOS,
-                              PreciosObs=PRECIOS_OBS)
-
-# Inicializamos las variables de conteo:
-mes.back.bonos <- mes
-anno.back.bonos <- anno
- 
-#
-for(h in 2:Periodo_max){
-  if(mes.back.bonos < 12){
-    
-    #
-    mes.back.bonos <- mes.back.bonos+1
-    
-    #
-    BONOS.TF.PRECIOS <- lapply(split(BONOS.TF.RESUMEN,seq(nrow(BONOS.TF.RESUMEN))),
-                               Tau.total.TF)
-    
-    #
-    BONOS.TF.PRECIOS <- data.frame(matrix(unlist(BONOS.TF.PRECIOS),
-                                          nrow=length(BONOS.TF.PRECIOS),
-                                          byrow=T))
-    
-    #
-    Bernoullis.TF2<-Bernoullis.TF1*Bernoullis.TF2
-    Bernoullis.TF1 <- t(V_DEFAULT(exp(-BONOS.TF.RESUMEN$Parametro)))
-    
-    #
-    BONOS.TF.PRECIOS <- BONOS.TF.PRECIOS*Bernoullis.TF1*Bernoullis.TF2
-    BONOS.TF.PRECIOS <- cbind(BONOS.TF.RESUMEN$COD_ISIN,
-                              BONOS.TF.PRECIOS)
-    colnames(BONOS.TF.PRECIOS)[1] <- 'COD_ISIN'
-    
-    #
-    BONOS.TF.RESULTADOS <- right_join(BONOS.TF[,c('COD_ISIN',
-                                                  'COD_ENT',
-                                                  'VAL_FAC',
-                                                  'PRECIO_TEORICO_0')],
-                                      BONOS.TF.PRECIOS, 
-                                      by = "COD_ISIN")
-    
-    #
-    for(j in 1:nrow(RESUMEN.TF)){
-      Redencion_TF(RESUMEN.TF[j,])
-    }
-    
-    #
-    BONOS.TV.PRECIOS <-lapply(split(BONOS.TV.RESUMEN,
-                                    seq(nrow(BONOS.TV.RESUMEN))),
-                              Tau.total.TV)
-    
-    #
-    BONOS.TV.PRECIOS <- data.frame(matrix(unlist(BONOS.TV.PRECIOS),
-                                          nrow=length(BONOS.TV.PRECIOS),
-                                          byrow=T))
-    
-    #
-    Bernoullis.TV2 <- Bernoullis.TV1*Bernoullis.TV2
-    Bernoullis.TV1 <- t(V_DEFAULT(exp(-BONOS.TV.RESUMEN$Parametro))) 
-    
-    #
-    BONOS.TV.PRECIOS <- BONOS.TV.PRECIOS*Bernoullis.TV2*Bernoullis.TV1
-    BONOS.TV.PRECIOS <- cbind(BONOS.TV.RESUMEN$COD_ISIN,
-                              BONOS.TV.PRECIOS)
-    colnames(BONOS.TV.PRECIOS)[1] <- 'COD_ISIN'
-    
-    #
-    BONOS.TV.RESULTADOS <- right_join(BONOS.TV[,c('COD_ISIN',
-                                                  'COD_ENT',
-                                                  'VAL_FAC',
-                                                  'PRECIO_TEORICO_0')],
-                                      BONOS.TV.PRECIOS,
-                                      by = "COD_ISIN")
-    
-    #
-    for(j in 1:nrow(RESUMEN.TV)){
-      Redencion_TV(RESUMEN.TV[j,])
-    }
-    
-    #
-    PRECIOS_OBS <- BONOS.TODO %>% 
-      filter(year(FEC_DAT)==anno, month(FEC_DAT)==mes.back.bonos) %>% 
-      select(COD_ISIN,COD_ENT,VAL_FAC,PRECIO)
-    
-    #
-    LISTA.RESULTADOS[[h]] <- list(PrecioTF1=BONOS.TF.RESULTADOS,
-                                  PrecioTV1=BONOS.TV.RESULTADOS,
-                                  PreciosObs=PRECIOS_OBS)
-    
-    #
-  } else{
-    mes.back.bonos<-1
-    anno.back.bonos<-anno.back.bonos+1
-    
-    #
-    BONOS.TF.PRECIOS <-lapply(split(BONOS.TF.RESUMEN,
-                                    seq(nrow(BONOS.TF.RESUMEN))),Tau.total.TF)
-    
-    #
-    BONOS.TF.PRECIOS <- data.frame(matrix(unlist(BONOS.TF.PRECIOS), nrow=length(BONOS.TF.PRECIOS), byrow=T))
-    
-    #
-    Bernoullis.TF2<-Bernoullis.TF1*Bernoullis.TF2
-    Bernoullis.TF1 <- t(V_DEFAULT(exp(-BONOS.TF.RESUMEN$Parametro)))
-    
-    #
-    BONOS.TF.PRECIOS <- BONOS.TF.PRECIOS*Bernoullis.TF1*Bernoullis.TF2
-    BONOS.TF.PRECIOS <- cbind(BONOS.TF.RESUMEN$COD_ISIN,BONOS.TF.PRECIOS)
-    colnames(BONOS.TF.PRECIOS)[1] <- 'COD_ISIN'
-    
-    #
-    BONOS.TF.RESULTADOS <- right_join(BONOS.TF[,c('COD_ISIN','COD_ENT','VAL_FAC','PRECIO_TEORICO_0')],
-                                      BONOS.TF.PRECIOS,
-                                      by = "COD_ISIN")
-    
-    #
-    for(j in 1:nrow(RESUMEN.TF)){
-      Redencion_TF(RESUMEN.TF[j,])
-    }
-    
-    #
-    BONOS.TV.PRECIOS <- lapply(split(BONOS.TV.RESUMEN,
-                                     seq(nrow(BONOS.TV.RESUMEN))),
-                               Tau.total.TV)
-    
-    #
-    BONOS.TV.PRECIOS <- data.frame(matrix(unlist(BONOS.TV.PRECIOS),
-                                          nrow=length(BONOS.TV.PRECIOS),
-                                          byrow=T))
-    
-    #
-    Bernoullis.TV2<-Bernoullis.TV1*Bernoullis.TV2
-    Bernoullis.TV1 <- t(V_DEFAULT(exp(-BONOS.TV.RESUMEN$Parametro))) 
-    
-    #
-    BONOS.TV.PRECIOS <- BONOS.TV.PRECIOS*Bernoullis.TV2*
-      as.numeric(Bernoullis.TV1)
-    BONOS.TV.PRECIOS <- cbind(BONOS.TV.RESUMEN$COD_ISIN,
-                              BONOS.TV.PRECIOS)
-    colnames(BONOS.TV.PRECIOS)[1] <- 'COD_ISIN'
-    
-    #
-    BONOS.TV.RESULTADOS <- right_join(BONOS.TV[,c('COD_ISIN',
-                                                  'COD_ENT',
-                                                  'VAL_FAC',
-                                                  'PRECIO_TEORICO_0')],
-                                      BONOS.TV.PRECIOS,by = "COD_ISIN")
-    
-    #
-    for(j in 1:nrow(RESUMEN.TV)){
-      Redencion_TV(RESUMEN.TV[j,])
-    }
-    
-    #
-    PRECIOS_OBS <- BONOS.TODO %>% filter(year(FEC_DAT)==anno.back.bonos,
-                                         month(FEC_DAT)==mes.back.bonos) %>% 
-      select(COD_ISIN,COD_ENT,VAL_FAC,PRECIO)
-    
-    #
-    LISTA.RESULTADOS[[h]] <- list(PrecioTF1=BONOS.TF.RESULTADOS,
-                                  PrecioTV1=BONOS.TV.RESULTADOS,
-                                  PreciosObs=PRECIOS_OBS)
-  }
-}
-
-
-################################ Acciones ####################################
 
 
 
