@@ -47,9 +47,6 @@ mes <- 3
 # Año del mes del cual se parte para realizar el backtesting:
 anno <- 2020 
 
-# Cantidad de periodos en meses al cual se va a calcular el rendimiento
-Periodo <- 12 
-
 # Tasa del primer vencimiento TRI en el mes del cual se parte para realizar el backtetsing (marzo):
 TRI.corta <- log(1+1.25/100/52)*52/12
 
@@ -239,6 +236,7 @@ data.tasas <- rbind(c(mean(Overnight$TasaS[which((month(Overnight$Fecha)==month(
 # Filtramos las observaciones del mes a valorar:
 BONOS <- BONOS %>% mutate(PRECIO=ifelse(PRECIO>400,VEC_PRE_POR/100,PRECIO))
 BONOS.TODO <- BONOS
+Periodo <- 1 
 BONOS <- BONOS %>% filter(year(FEC_DAT)==anno & month(FEC_DAT)==mes) %>% 
   filter(Tau(FEC_DAT,FEC_VEN)>=Periodo)
 
@@ -959,7 +957,7 @@ DEFAULT <- function(p){
 V_DEFAULT <- Vectorize(DEFAULT)
 
 #
-Bernoullis <- t(V_DEFAULT(BONOS.TF.RESUMEN$Probabilidad))
+Bernoullis.TF1 <- t(V_DEFAULT(BONOS.TF.RESUMEN$Probabilidad))
 
 #   
 BONOS.TF.PRECIOS <- BONOS.TF.PRECIOS*Bernoullis
@@ -1222,7 +1220,7 @@ BONOS.TV.PRECIOS <- data.frame(matrix(unlist(BONOS.TV.PRECIOS),
                                       byrow=T))
     
 #    
-Bernoullis <- t(V_DEFAULT(BONOS.TV.RESUMEN$Probabilidad))
+Bernoullis.TV1 <- t(V_DEFAULT(BONOS.TV.RESUMEN$Probabilidad))
 
 #  
 BONOS.TV.PRECIOS <- BONOS.TV.PRECIOS*Bernoullis
@@ -1784,55 +1782,7 @@ graf.efi
 # Lista de almacenamieto de resultados:
 LISTA.RESULTADOS <- list()
 
-#
-BONOS.TF.PRECIOS.back <-lapply(split(BONOS.TF.RESUMEN,
-                                seq(nrow(BONOS.TF.RESUMEN))),Tau.total.TF)
 
-#
-BONOS.TF.PRECIOS <- data.frame(matrix(unlist(BONOS.TF.PRECIOS),
-                                      nrow=length(BONOS.TF.PRECIOS), byrow=T))
-
-#
-Bernoullis.TF1 <- t(V_DEFAULT(exp(-BONOS.TF.RESUMEN$Parametro)))
-
-#
-BONOS.TF.PRECIOS <- BONOS.TF.PRECIOS*Bernoullis.TF1
-BONOS.TF.PRECIOS <- cbind(BONOS.TF.RESUMEN$COD_ISIN,BONOS.TF.PRECIOS)
-colnames(BONOS.TF.PRECIOS)[1] <- 'COD_ISIN'
-
-#
-BONOS.TF.RESULTADOS <- right_join(BONOS.TF[,c('COD_ISIN',
-                                              'COD_ENT',
-                                              'VAL_FAC',
-                                              'PRECIO_TEORICO_0')], 
-                                  BONOS.TF.PRECIOS, by = "COD_ISIN")
-
-#
-BONOS.TV.PRECIOS <-lapply(split(BONOS.TV.RESUMEN,seq(nrow(BONOS.TV.RESUMEN))),
-                          Tau.total.TV)
-
-#
-BONOS.TV.PRECIOS <- data.frame(matrix(unlist(BONOS.TV.PRECIOS),
-                                      nrow=length(BONOS.TV.PRECIOS),
-                                      byrow=T))
-
-#
-Bernoullis.TV1 <- t(V_DEFAULT(exp(-BONOS.TV.RESUMEN$Parametro)))
-
-#
-BONOS.TV.PRECIOS <- BONOS.TV.PRECIOS*Bernoullis.TV1
-BONOS.TV.PRECIOS <- cbind(BONOS.TV.RESUMEN$COD_ISIN,BONOS.TV.PRECIOS)
-colnames(BONOS.TV.PRECIOS)[1] <- 'COD_ISIN'
-
-#
-BONOS.TV.RESULTADOS <- right_join(BONOS.TV[,c('COD_ISIN',
-                                              'COD_ENT',
-                                              'VAL_FAC',
-                                              'PRECIO_TEORICO_0')],
-                                  BONOS.TV.PRECIOS,
-                                  by = "COD_ISIN")
-
-#
 PRECIOS_OBS <- BONOS.TODO %>% 
   filter(year(FEC_DAT)==anno, month(FEC_DAT)==mes) %>% 
   select(COD_ISIN,COD_ENT,VAL_FAC,PRECIO)
@@ -1847,11 +1797,17 @@ LISTA.RESULTADOS[[1]] <- list(PrecioTF1=BONOS.TF.RESULTADOS,
 
 #
 for(h in 2:Periodo_bt){
+
+  Periodo<-h
+  BONOS.TF.RESUMEN <- BONOS.TF.RESUMEN %>% filter(Tau(FEC_DAT,FEC_VEN)>=Periodo)
+  BONOS.TV.RESUMEN <- BONOS.TV.RESUMEN %>% filter(Tau(FEC_DAT,FEC_VEN)>=Periodo)
+  
   if(mes < 12){
     
     #
     mes<- mes+1
     
+
     #
     BONOS.TF.PRECIOS <- lapply(split(BONOS.TF.RESUMEN,seq(nrow(BONOS.TF.RESUMEN))),
                                Tau.total.TF)
@@ -1883,7 +1839,7 @@ for(h in 2:Periodo_bt){
     for(j in 1:nrow(RESUMEN.TF)){
       Redencion_TF(RESUMEN.TF[j,])
     }
-    
+
     #
     BONOS.TV.PRECIOS <-lapply(split(BONOS.TV.RESUMEN,
                                     seq(nrow(BONOS.TV.RESUMEN))),
@@ -1932,6 +1888,7 @@ for(h in 2:Periodo_bt){
     mes<-1
     anno<-anno+1
     
+   
     #
     BONOS.TF.PRECIOS <-lapply(split(BONOS.TF.RESUMEN,
                                     seq(nrow(BONOS.TF.RESUMEN))),Tau.total.TF)
