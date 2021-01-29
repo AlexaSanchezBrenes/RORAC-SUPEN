@@ -1942,7 +1942,7 @@ graf.efi <- ggplot(Resultados.rorac %>%
 theme(axis.text.x=element_blank(),
       axis.ticks.x=element_blank()) +
   ylab("Rendimiento (%)") +
-  xlab("CVaR") +
+  xlab("Riesgo") +
   geom_text(data = Resultados.rorac %>% filter(Entidad == "Benchmark"),
             aes(x = CVaR, y=RORAC,label = Entidad),
             color = "red", nudge_y = 4) +
