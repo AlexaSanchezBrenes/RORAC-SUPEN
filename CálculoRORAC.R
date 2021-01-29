@@ -113,6 +113,9 @@ confianza <- 1/100
 # Límite de rendimiento de acciones permitido:
 lim.rend <- 700
 
+# Intensidad de Optimización de Portafolio:
+Int.Port <- 2
+
 ############################## Carga de Datos ################################
 
 
@@ -1554,10 +1557,6 @@ matriz.R <- ClustImpute(as.data.frame(matriz.R),
 # Se traspone la matriz:
 matriz.R <- t(as.matrix(matriz.R))
     
-# Se crean los conjuntos de eventos con clasificación jerarquica:
-#acc.clas <- hclust(dist(matriz.R, method = "euclidean"), method = "ward.D2")
-#acc.clas <- cutree(acc.clas, k = cant.tit+1)
-    
 # Se crean los conjuntos de eventos con clasificación por k-means:
 acc.clas <- kmeans(matriz.R, cant.tit+1, iter.max = 1000, 
                    nstart = 1000, algorithm = "MacQueen")$cluste
@@ -1723,8 +1722,8 @@ VAL.FAC.PSO <- psoptim(par = c(BONOS.TF.RESULTADOS$VAL_FAC,
                        upper = rep(1-(1/(9^1000)),sum(nrow(BONOS.TF.RESULTADOS)+
                                            nrow(BONOS.TV.RESULTADOS)+
                                            nrow(ACCIONES.RESULTADOS))),
-                       control = list(maxit = 5,
-                                      s = 2,
+                       control = list(maxit = Int.Port,
+                                      s = round(0.1*Int.Port)+1,
                                       w = -0.1832,
                                       c.p =0.5287,
                                       c.g = 3.1913))
@@ -1741,7 +1740,58 @@ VAL.FAC.SA <- optim_sa(fun = Port.Optim,
                        upper = rep(1-(1/(9^1000)),sum(nrow(BONOS.TF.RESULTADOS)+
                                                         nrow(BONOS.TV.RESULTADOS)+
                                                         nrow(ACCIONES.RESULTADOS))),
-                       control = list(nlimit = 1))
+                       control = list(nlimit = Int.Port))
+
+# Revisión de Límites:
+Titulos.optim.r <- cbind(Portafolio.total[,1:8], 
+                       apply(as.matrix(Portafolio.total[,-(1:8)]),
+                             2,
+                             as.numeric)*VAL.FAC.PSO$par)
+# Valores futuros:
+val.portafolio.fut.r <- colSums(Titulos.optim.r[,-(1:8)])
+
+# Por sector:
+Sector.tit.r <- Titulos.optim.r %>% filter(COD_SEC == 1)
+Sector.prop.r <- 1-sum(0.8<colSums(Sector.tit[,-(1:8)])/val.portafolio.fut.r)/cant.simu
+
+# Por emisor:
+Emisor.tit.r <- t(rowsum(as.matrix(Titulos.optim.r[,-(1:8)]), 
+                       Titulos.optim.r$COD_EMI))/val.portafolio.fut.r
+Emisor.prop.r <- 1-sum(0.1 < Emisor.tit.r)/(cant.simu*dim(Emisor.tit.r)[2])
+
+# Por administración externa:
+Admin.tit.r <- Titulos.optim.r %>% filter(ADMIN != 1)
+Admin.prop.r <- 1-sum(0.1<colSums(Admin.tit.r[,-(1:8)])/val.portafolio.fut.r)/cant.simu
+
+# Por títulos emitidos en el extrangero:
+Extr.tit.r <- Titulos.optim.r %>% filter(!substring(COD_ISIN, 1, 2) %in% c("CR","00"))
+Extr.prop.r <- 1-sum(0.25<(colSums(Extr.tit.r[,-(1:8)])/val.portafolio.fut.r))/cant.simu
+
+# Por modalidad de inversión:
+Modal.tit.r <- t(rowsum(as.matrix(Titulos.optim.r[,-(1:8)]), 
+                      Titulos.optim$COD_MOD_INV))/val.portafolio.fut.r
+Modal.prop1.r <- 1-sum(0.1 < Modal.tit.r[,c("DI","P2","E1")])/(cant.simu*3)
+Modal.prop2.r <- 1-sum(0.25 < Modal.tit.r[,c("P1")])/cant.simu
+
+# Datos de revisión:
+Datos.limites <- data.frame(Límite = c("Sector Público",
+                                       "Emisor", 
+                                       "Administración Externa",
+                                       "Títulos Emitidos en el Extrangero",
+                                       "Modalidad de inversión",
+                                       "Modalidad de inversión"),
+                            `Criterio de Límite` = c("No se debe obtener más del 80%",
+                                                     "Máximo de 10% por emisor",
+                                                     "Máximo de 10% en administración externa",
+                                                     "Máximo de 25% en títulos Extrangeros",
+                                                     "Máximo de 10% en DI, P2 y E1",
+                                                     "Máximo de 25% en P1"),
+                            Ajuste = c(Sector.prop.r,
+                                       Emisor.prop.r, 
+                                       Admin.prop.r,
+                                       Extr.prop.r,
+                                       Modal.prop1.r,
+                                       Modal.prop2.r))
 
 # CVAR del portafolio futuro optimo:
 CVAR.opti <- mean(sort(colSums(apply(as.matrix(Portafolio.total[,-(1:8)]),
