@@ -42,9 +42,11 @@
 #                    - Simulación de Acciones
 #             4. Cálculo RORAC
 #                    - Optimización del Portafolio de Mercado
+#                    - Cálculo del Benchmark de Mercado
 #                    - Portafolio Individual por Régimen
 #                         • Parámetros de Almacenamiento 
 #                         • Cálculo de RORACs
+#                    - Visualización
 #
 #############################################################################
 
@@ -66,6 +68,8 @@ library(readxl)
 library(stringr)
 library(tictoc)
 library(tidyr)
+library(optimization)
+library(pso)
 library(purrr)
 library(ggplot2)
 library(wrMisc)
@@ -106,6 +110,8 @@ TC <- 579.5
 # Se define el nivel de confianza:
 confianza <- 1/100
 
+# Límite de rendimiento de acciones permitido:
+lim.rend <- 700
 
 ############################## Carga de Datos ################################
 
@@ -160,11 +166,12 @@ titulos.nuevos <- tabla[14:26]
 titulos.viejos <- do.call("rbind", titulos.viejos)
 titulos.nuevos <- do.call("rbind", titulos.nuevos)
 titulos.viejos <- titulos.viejos %>% select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR,FEC_VEN,COD_ISIN,TAS_FAC,PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,COD_FON)
-titulos.viejos <- cbind(titulos.viejos,rep('NA',nrow(titulos.viejos)))
-titulos.nuevos <- titulos.nuevos %>% select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,COD_FON,ES_REDE)
+titulos.nuevos <- titulos.nuevos %>% select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,COD_FON,ES_REDE,ADMIN,COD_SEC)
+titulos.viejos <- cbind(titulos.viejos, 
+                        matrix(rep('NA', nrow(titulos.viejos)*(ncol(titulos.nuevos)-ncol(titulos.viejos))), ncol = (ncol(titulos.nuevos)-ncol(titulos.viejos))))
 colnames(titulos.viejos) <- colnames(titulos.nuevos)
 
-titulos.viejos <- titulos.viejos %>% filter(COD_ISIN %in% unique(titulos.nuevos$COD_ISIN)) # Se pierden 311 074 obs
+titulos.viejos <- titulos.viejos %>% filter(COD_ISIN %in% unique(titulos.nuevos$COD_ISIN))
 
 titulos <- rbind(titulos.viejos,titulos.nuevos)
 
@@ -175,8 +182,7 @@ titulos <- titulos %>% mutate(COD_MOD_INV =
                                 case_when(COD_MOD_INV %in% c("DR","DO","DT", "DD") ~ "D2",
                                           COD_MOD_INV %in% c("M1","v1","A1") ~ "P1",
                                           COD_MOD_INV == "V2" ~ "P2",
-                                          TRUE ~ COD_MOD_INV
-                                ))
+                                          TRUE ~ COD_MOD_INV))
 
 
 # Eliminamos recompras
@@ -184,11 +190,12 @@ titulos <- titulos %>% filter(COD_MOD_INV != 'RE')
 
 # Filtramos los títulos que corresponden a bonos
 BONOS <- titulos %>% 
-  select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,ES_REDE) %>%
+  select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,ES_REDE,ADMIN,COD_SEC) %>%
   filter(!is.na(TIP_PER),!is.na(VAL_FAC),!is.na(FEC_VEN)) %>% mutate(PRECIO=VAL_MER/VAL_FAC)
 BONOS.PER.NA <- titulos %>% 
-  filter(COD_MOD_INV %in% c("DE","D1","D2","D3","DI","IE"),is.na(TIP_PER),!is.na(VAL_FAC),!is.na(FEC_VEN)) %>%
-  select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,ES_REDE) %>%
+  filter(COD_MOD_INV %in% c("DE","D1","D2","D3","DI","IE"),
+         is.na(TIP_PER),!is.na(VAL_FAC),!is.na(FEC_VEN)) %>%
+  select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,ES_REDE,ADMIN,COD_SEC) %>%
   mutate(TIP_PER=0) %>% mutate(PRECIO=VAL_MER/VAL_FAC)
 
 #
@@ -1005,6 +1012,9 @@ colnames(BONOS.TF.PRECIOS)[1] <- 'COD_ISIN'
 BONOS.TF.RESULTADOS <- BONOS.TF[,c('COD_ISIN',
                                    'COD_ENT',
                                    'COD_MOD_INV',
+                                   'ADMIN',
+                                   'COD_EMI',
+                                   'COD_SEC',
                                    'VAL_FAC',
                                    'PRECIO_TEORICO_0')] %>% 
   group_by(COD_ISIN, COD_ENT, PRECIO_TEORICO_0) %>% 
@@ -1192,12 +1202,12 @@ Redencion_TF <- function(fila){
       mutate(PRECIO1=V_Precio1(k,Periodo_Venta),
              PrecioInicial=t(as.matrix(BONOS.TF.RESULTADOS[which(BONOS.TF.RESULTADOS$COD_ISIN==
                                                                    fila[,'COD_ISIN'])[1],
-                                                           6:ncol(BONOS.TF.RESULTADOS)]))) %>%
+                                                           9:ncol(BONOS.TF.RESULTADOS)]))) %>%
       mutate(PRECIOFINAL=ifelse(is.na(PRECIO1),PrecioInicial,PRECIO1))
     
     #
     BONOS.TF.RESULTADOS[which(BONOS.TF.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']),
-                        6:ncol(BONOS.TF.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
+                        9:ncol(BONOS.TF.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
                                                           each=length(which(BONOS.TF.RESULTADOS$COD_ISIN==
                                                                               fila[,'COD_ISIN']))),byrow = F,nrow = length(which(BONOS.TF.RESULTADOS$COD_ISIN==
                                                                                                                                    fila[,'COD_ISIN'])))   
@@ -1269,6 +1279,9 @@ colnames(BONOS.TV.PRECIOS)[1] <- 'COD_ISIN'
 BONOS.TV.RESULTADOS <- BONOS.TV[,c('COD_ISIN',
                                    'COD_ENT',
                                    'COD_MOD_INV',
+                                   'ADMIN',
+                                   'COD_EMI',
+                                   'COD_SEC',
                                    'VAL_FAC',
                                    'PRECIO_TEORICO_0')] %>% 
   group_by(COD_ISIN, COD_ENT, PRECIO_TEORICO_0) %>% 
@@ -1438,12 +1451,12 @@ Redencion_TV <- function(fila){
       data.frame <- data.frame %>% mutate(k=1:nrow(data.frame)) %>% 
         mutate(PRECIO1=V_Precio1(k,Periodo_Venta),
                PrecioInicial=t(as.matrix(BONOS.TV.RESULTADOS[which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])[1],
-                                                             6:ncol(BONOS.TV.RESULTADOS)]))) %>%
+                                                             9:ncol(BONOS.TV.RESULTADOS)]))) %>%
         mutate(PRECIOFINAL=ifelse(is.na(PRECIO1),PrecioInicial,PRECIO1))
        
       #
       BONOS.TV.RESULTADOS[which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']),
-                          6:ncol(BONOS.TV.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
+                          9:ncol(BONOS.TV.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
                                                             each=length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']))),byrow = F,nrow = length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])))   
   }
 }
@@ -1568,36 +1581,41 @@ colnames(Ini.pre) <- "acción"
 Ini.pre <- apply(Ini.pre, 2, as.numeric)
 row.names(Ini.pre) <- indexA
 
+# Corrección de la matriz R:
+matriz.R[(lim.rend < matriz.R)] <- 1
+
+
 ######################## Simulación de Acciones ##############################
 
 # Se inicializa la matriz:
 simu.matriz <- matrix(row.names(matriz.R), ncol = 1)
 colnames(simu.matriz) <- "COD_ISIN"
 
-# Inicialización de la lista para backtesting:
-ACCIONES.BACK.SIMU <- list()
-
 # Se generan las simulaciones:
 for(mesi in 1:cant.simu){
   
+  # Se ejecuta la simulación para un periodo:
   ejec <- matriz.R%*%rmultinom(Periodo, 1, prob.objetiva)
-  ejec <- t(apply(ejec, 1, cumprod))
+  ejec <- apply(ejec, 1, prod)
   
-  simu.matriz <- cbind(simu.matriz, ejec[,Periodo])
-  colnames(simu.matriz)[ncol(simu.matriz)] <- paste("simu",mesi)
+  # Se guardan los resultados:
+  simu.matriz <- cbind(simu.matriz, ejec)
+  colnames(simu.matriz)[ncol(simu.matriz)] <- paste("X",mesi, sep = "")
 }
 
 # Se extrae la información de la simulación:
 ACCIONES.RESULTADOS <- ACCIONES %>%
   filter(FEC_DAT==exa.fec, COD_ISIN%in%row.names(titulo.ob %>%
                                                    filter(Criterio == TRUE))) %>% 
-  select(COD_ISIN, COD_ENT, COD_MOD_INV, VAL_FAC, Precio) %>% group_by(COD_ISIN, COD_ENT) %>% 
+  select(COD_ISIN, COD_ENT, COD_MOD_INV, ADMIN, COD_EMI, COD_SEC, VAL_FAC, Precio) %>% 
+  group_by(COD_ISIN, COD_ENT) %>% 
   mutate(VAL_FAC = sum(VAL_FAC), Precio = mean(Precio)) %>% 
   ungroup() %>% unique() %>%  
-  left_join(as.data.frame(simu.matriz), by="COD_ISIN")
+  left_join(as.data.frame(simu.matriz), by="COD_ISIN") %>% 
+  rename(PRECIO_TEORICO_0 = Precio)
 
 
-#############################################################################
+##############################################################################
 
 
                       #################################
@@ -1610,64 +1628,177 @@ ACCIONES.RESULTADOS <- ACCIONES %>%
 ################### Optimización del Portafolio de Mercado ###################
 
 
-# Se calcula el valor del portafolio hoy:
-val.portafolio.hoy <- sum(BONOS.TF.RESULTADOS$PRECIO_TEORICO_0*BONOS.TF.RESULTADOS$VAL_FAC) +
-  sum(BONOS.TV.RESULTADOS$PRECIO_TEORICO_0*BONOS.TV.RESULTADOS$VAL_FAC) +
-  sum(ACCIONES.RESULTADOS$VAL_FAC*ACCIONES.RESULTADOS$Precio)
+# Valor Facial Total del Portafolio:
+val.total.fac <- sum(BONOS.TF.RESULTADOS$VAL_FAC)+sum(BONOS.TV.RESULTADOS$VAL_FAC)+sum(ACCIONES.RESULTADOS$VAL_FAC)
+
+# Se corrigen los valores faciales:
+BONOS.TF.RESULTADOS$VAL_FAC <- BONOS.TF.RESULTADOS$VAL_FAC/val.total.fac
+BONOS.TV.RESULTADOS$VAL_FAC <- BONOS.TV.RESULTADOS$VAL_FAC/val.total.fac
+ACCIONES.RESULTADOS$VAL_FAC <- ACCIONES.RESULTADOS$VAL_FAC/val.total.fac
+
+# Se unifican los títulos:
+Portafolio.total <- rbind(BONOS.TF.RESULTADOS, BONOS.TV.RESULTADOS, ACCIONES.RESULTADOS)
 
 # Función de Optimización de Portafolio:
 Port.Optim <- function(X){
+
+  # se define el portafolio total:
+  Titulos.optimo <- Portafolio.total
   
-  # Asignación de Valores Faciales:
-  VF.TF <- X[1:nrow(BONOS.TF.RESULTADOS)]
-  VF.TV <- X[(nrow(BONOS.TF.RESULTADOS)+1):(nrow(BONOS.TF.RESULTADOS)+
-                                              nrow(BONOS.TV.RESULTADOS))]
-  VF.A <- X[(nrow(BONOS.TF.RESULTADOS)+nrow(BONOS.TV.RESULTADOS)+1):
-              (nrow(BONOS.TF.RESULTADOS)+nrow(BONOS.TV.RESULTADOS)+
-                 nrow(ACCIONES.RESULTADOS))]
+  # Se multiplican los valores faciales:
+  Titulos.optim <- cbind(Titulos.optim[,1:8], 
+                         apply(as.matrix(Titulos.optim[,-(1:8)]),
+                               2,
+                               as.numeric)*as.vector(X))
   
-  # Se calculan los valores del portafolio futuro:
-  bonos.tf.fut <- colSums(VF.TF*as.matrix(BONOS.TF.RESULTADOS[,-(1:4)]))
+  # Valore del portafolio actual:
+  val.portafolio.act <- sum(Titulos.optim$PRECIO_TEORICO_0*X)
   
-  bonos.tv.fut <- colSums(VF.TV*as.matrix(BONOS.TV.RESULTADOS[,-(1:4)]))
-  
-  acciones.fut <- colSums(VF.A*apply(as.matrix(ACCIONES.RESULTADOS[,-(1:5)]),
-                                  2,
-                                  as.numeric))
+  # Valores futuros:
+  val.portafolio.fut <- colSums(Titulos.optim[,-(1:8)])
   
   # CVAR del valor del portafolio futuro:
-  CVAR.G <- mean(sort(acciones.fut+bonos.tf.fut+bonos.tv.fut)[(cant.simu*(1-confianza)):cant.simu])
+  CVAR.G <- mean(sort(val.portafolio.fut)[(cant.simu*(1-confianza)):cant.simu])
   
   # RORAC del portafolio:
-  RORAC.G <- (mean(acciones.fut+bonos.tf.fut+bonos.tv.fut)-
-                val.portafolio.hoy)/(val.portafolio.hoy+CVAR.G)
+  RORAC.G <- -((mean(val.portafolio.fut)-
+                val.portafolio.act)/(val.portafolio.act+CVAR.G))
+  
+  # Restricciones y Límites:
+  
+  # Mantener proporción:
+  if(sum(X)!=1){
+    RORAC.G <- RORAC.G+abs(1-sum(X))*1000
+  }
+  
+  # Por sector:
+  Sector.tit <- Titulos.optim %>% filter(COD_SEC == 1)
+  Sector.prop <- sum(0.8<colSums(Sector.tit[,-(1:8)])/val.portafolio.fut)
+  if(0<Sector.prop){
+    RORAC.G <- RORAC.G+Sector.prop/cant.simu
+  }
+  
+  # Por emisor:
+  Emisor.tit <- t(rowsum(as.matrix(Titulos.optim[,-(1:8)]), 
+                            Titulos.optim$COD_EMI))/val.portafolio.fut
+  Emisor.prop <- sum(0.1 < Emisor.tit)
+  if(0<Emisor.prop){
+    RORAC.G <- RORAC.G+Emisor.prop/cant.simu
+  }
+  
+  # Por administración externa:
+  Admin.tit <- Titulos.optim %>% filter(ADMIN != 1)
+  Admin.prop <- sum(0.1<colSums(Admin.tit[,-(1:8)])/val.portafolio.fut)
+  if(0<Admin.prop){
+    RORAC.G <- RORAC.G+Admin.prop/cant.simu
+  }
+  
+  # Por títulos emitidos en el extrangero:
+  Extr.tit <- Titulos.optim %>% filter(!substring(COD_ISIN, 1, 2) %in% c("CR","00"))
+  Extr.prop <- sum(0.25<(colSums(Extr.tit[,-(1:8)])/val.portafolio.fut))
+  if(0<Extr.prop){
+    RORAC.G <- RORAC.G+Extr.prop/cant.simu
+  }
+  
+  # Por modalidad de inversión:
+  Modal.tit <- t(rowsum(as.matrix(Titulos.optim[,-(1:8)]), 
+                      Titulos.optim$COD_MOD_INV))/val.portafolio.fut
+  Modal.prop1 <- sum(0.1 < Modal.tit[,c("DI","P2","E1")])
+  Modal.prop2 <- sum(0.25 < Modal.tit[,c("P1")])
+  if(0<(Modal.prop1+Modal.porp2)){
+    RORAC.G <- RORAC.G+(Modal.prop1+Modal.prop2)/cant.simu
+  }
   
   return(RORAC.G)
 }
 
+# Optimización por PSO:
+VAL.FAC.PSO <- psoptim(par = c(BONOS.TF.RESULTADOS$VAL_FAC,
+                               BONOS.TV.RESULTADOS$VAL_FAC,
+                               ACCIONES.RESULTADOS$VAL_FAC),
+                       fn = Port.Optim,
+                       lower = rep(0+(1/(9^1000)),sum(nrow(BONOS.TF.RESULTADOS)+
+                                           nrow(BONOS.TV.RESULTADOS)+
+                                           nrow(ACCIONES.RESULTADOS))),
+                       upper = rep(1-(1/(9^1000)),sum(nrow(BONOS.TF.RESULTADOS)+
+                                           nrow(BONOS.TV.RESULTADOS)+
+                                           nrow(ACCIONES.RESULTADOS))),
+                       control = list(maxit = 5,
+                                      s = 2,
+                                      w = -0.1832,
+                                      c.p =0.5287,
+                                      c.g = 3.1913))
+
+# Optimización por SA:
+VAL.FAC.SA <- optim_sa(fun = Port.Optim,
+                       start = c(BONOS.TF.RESULTADOS$VAL_FAC,
+                                 BONOS.TV.RESULTADOS$VAL_FAC,
+                                 ACCIONES.RESULTADOS$VAL_FAC),
+                       trace = TRUE,
+                       lower = rep(0+(1/(9^1000)),sum(nrow(BONOS.TF.RESULTADOS)+
+                                                        nrow(BONOS.TV.RESULTADOS)+
+                                                        nrow(ACCIONES.RESULTADOS))),
+                       upper = rep(1-(1/(9^1000)),sum(nrow(BONOS.TF.RESULTADOS)+
+                                                        nrow(BONOS.TV.RESULTADOS)+
+                                                        nrow(ACCIONES.RESULTADOS))),
+                       control = list(nlimit = 1))
+
+# CVAR del portafolio futuro optimo:
+CVAR.opti <- mean(sort(colSums(apply(as.matrix(Portafolio.total[,-(1:8)]),
+                             2,
+                             as.numeric)*
+                         VAL.FAC.PSO$par))[(cant.simu*(1-confianza)):cant.simu])
+
+# Valor del portafolio actual optimo:
+val.act.opt <- sum(Portafolio.total$PRECIO_TEORICO_0*VAL.FAC.PSO$par)
+
+# Rendimiento optimo:
+REND.opti <- (mean(colSums(apply(as.matrix(Portafolio.total[,-(1:8)]),
+                                 2,
+                                 as.numeric)*
+                             VAL.FAC.PSO$par))-
+                val.act.opt)/val.act.opt
+
+# RORAC del portafolio futuro optimo:
+RORAC.opti <- ((mean(colSums(apply(as.matrix(Portafolio.total[,-(1:8)]),
+                                   2,
+                                   as.numeric)*
+                               VAL.FAC.PSO$par))-
+                  val.act.opt)/(val.act.opt+CVAR.opti))
+
+
+##################### Cálculo del Benchmark de Mercado #######################
+
+
+# Se calcula el valor del portafolio hoy:
+val.portafolio.hoy <- sum(BONOS.TF.RESULTADOS$PRECIO_TEORICO_0*BONOS.TF.RESULTADOS$VAL_FAC) +
+  sum(BONOS.TV.RESULTADOS$PRECIO_TEORICO_0*BONOS.TV.RESULTADOS$VAL_FAC) +
+  sum(ACCIONES.RESULTADOS$VAL_FAC*ACCIONES.RESULTADOS$PRECIO_TEORICO_0)
+
 # Se calculan los valores del portafolio futuro:
-bonos.tf.fut <- colSums(matrix(rep(BONOS.TF.RESULTADOS$VAL_FAC, ncol(BONOS.TF.RESULTADOS)-5), 
-                       nrow = nrow(BONOS.TF.RESULTADOS))*as.matrix(BONOS.TF.RESULTADOS[,-(1:5)]))
+bonos.tf.fut.b <- colSums(matrix(rep(BONOS.TF.RESULTADOS$VAL_FAC, ncol(BONOS.TF.RESULTADOS)-8), 
+                               nrow = nrow(BONOS.TF.RESULTADOS))*as.matrix(BONOS.TF.RESULTADOS[,-(1:8)]))
 
-bonos.tv.fut <- colSums(matrix(rep(BONOS.TV.RESULTADOS$VAL_FAC, ncol(BONOS.TV.RESULTADOS)-5), 
-                               nrow = nrow(BONOS.TV.RESULTADOS))*as.matrix(BONOS.TV.RESULTADOS[,-(1:5)]))
+bonos.tv.fut.b <- colSums(matrix(rep(BONOS.TV.RESULTADOS$VAL_FAC, ncol(BONOS.TV.RESULTADOS)-8), 
+                               nrow = nrow(BONOS.TV.RESULTADOS))*as.matrix(BONOS.TV.RESULTADOS[,-(1:8)]))
 
-acciones.fut <- colSums(matrix(rep(ACCIONES.RESULTADOS$Precio, ncol(ACCIONES.RESULTADOS)-5), 
-                                     nrow = nrow(ACCIONES.RESULTADOS))*
-                          apply(as.matrix(ACCIONES.RESULTADOS[,-(1:5)]),
+acciones.fut.b <- colSums(matrix(rep(ACCIONES.RESULTADOS$PRECIO_TEORICO_0*ACCIONES.RESULTADOS$VAL_FAC,
+                                   ncol(ACCIONES.RESULTADOS)-8), 
+                               nrow = nrow(ACCIONES.RESULTADOS))*
+                          apply(as.matrix(ACCIONES.RESULTADOS[,-(1:8)]),
                                 2,
                                 as.numeric))
 
 # Rendimiento del portafolio promedio:
-REND.G <- (mean(acciones.fut+bonos.tf.fut+bonos.tv.fut)-
+REND.Bench <- (mean(acciones.fut.b+bonos.tf.fut.b+bonos.tv.fut.b)-
              val.portafolio.hoy)/val.portafolio.hoy
 
 # CVAR del valor del portafolio futuro:
-CVAR.G <- mean(sort(acciones.fut+bonos.tf.fut+bonos.tv.fut)[(cant.simu*(1-confianza)):cant.simu])
+CVAR.Bench <- mean(sort(acciones.fut.b+bonos.tf.fut.b+bonos.tv.fut.b)[(cant.simu*(1-confianza)):cant.simu])
 
 # RORAC del portafolio:
-RORAC.G <- (mean(acciones.fut+bonos.tf.fut+bonos.tv.fut)-
-              val.portafolio.hoy)/(val.portafolio.hoy+CVAR.G)
+RORAC.Bench <- (mean(acciones.fut.b+bonos.tf.fut.b+bonos.tv.fut.b)-
+              val.portafolio.hoy)/(val.portafolio.hoy+CVAR.Bench)
 
 
 ###################### Portafolio Individual por Régimen #####################
@@ -1690,8 +1821,8 @@ cont <- 1
 
 # se calculan iterativamente los RORACS de cada entidad:
 for(reg in Entidades){
-
-  # se segrega el protafolio
+  
+  # se segrega el portafolio
   bonos.tf.reg <- BONOS.TF.RESULTADOS %>% filter(COD_ENT==reg)
   bonos.tv.reg <- BONOS.TV.RESULTADOS %>% filter(COD_ENT==reg)
   accion.reg <- ACCIONES.RESULTADOS %>% filter(COD_ENT==reg)
@@ -1699,23 +1830,23 @@ for(reg in Entidades){
   # Se calcula el valor del protafolio hoy:
   val.portafolio.hoy.reg <- sum(bonos.tf.reg$PRECIO_TEORICO_0*bonos.tf.reg$VAL_FAC) +
     sum(bonos.tv.reg$PRECIO_TEORICO_0*bonos.tv.reg$VAL_FAC) +
-    sum(accion.reg$VAL_FAC*accion.reg$Precio)
+    sum(accion.reg$VAL_FAC*accion.reg$PRECIO_TEORICO_0)
   
   # Se calculan los valores del protafolio futuro:
   bonos.tf.fut.reg <- colSums(matrix(rep(bonos.tf.reg$VAL_FAC, 
-                                         ncol(bonos.tf.reg)-5), 
+                                         ncol(bonos.tf.reg)-8), 
                                  nrow = nrow(bonos.tf.reg))*
-                                as.matrix(bonos.tf.reg[,-(1:5)]))
+                                as.matrix(bonos.tf.reg[,-(1:8)]))
   
   bonos.tv.fut.reg <- colSums(matrix(rep(bonos.tv.reg$VAL_FAC, 
-                                         ncol(bonos.tv.reg)-5), 
+                                         ncol(bonos.tv.reg)-8), 
                                  nrow = nrow(bonos.tv.reg))*
-                                as.matrix(bonos.tv.reg[,-(1:5)]))
+                                as.matrix(bonos.tv.reg[,-(1:8)]))
   
-  acciones.fut.reg <- colSums(matrix(rep(accion.reg$Precio, 
-                                         ncol(accion.reg)-5), 
+  acciones.fut.reg <- colSums(matrix(rep(accion.reg$PRECIO_TEORICO_0*accion.reg$VAL_FAC, 
+                                         ncol(accion.reg)-8), 
                                  nrow = nrow(accion.reg))*
-                                apply(as.matrix(accion.reg[,-(1:5)]),
+                                apply(as.matrix(accion.reg[,-(1:8)]),
                                       2,
                                       as.numeric))
   
@@ -1758,28 +1889,45 @@ Resultados.rorac <- data.frame(Entidad = Entidades, Valor = valorhoy,
   arrange(RORAC) 
 
 # Agregamos la información general:
-Resultados.rorac <- rbind(Resultados.rorac, c("Mercado",
-                                              val.portafolio.hoy, 
-                                              REND.G, CVAR.G,
-                                              RORAC.G)) %>% 
-  mutate(RORAC=100*round(as.numeric(RORAC),2), 
-         Rendimiento=100*round(as.numeric(Rendimiento),2))
+Resultados.rorac <- rbind(Resultados.rorac, 
+                          c("Benchmark",
+                            val.portafolio.hoy, 
+                            REND.Bench,
+                            CVAR.Bench,
+                            RORAC.Bench),
+                          c("Óptimo",
+                            val.act.opt,
+                            REND.opti,
+                            CVAR.opti,
+                            RORAC.opti)) %>% 
+  mutate(RORAC=100*round(as.numeric(RORAC),4), 
+         Rendimiento=100*round(as.numeric(Rendimiento),4))
+
+
+############################### Visualización ################################
+
 
 # visualizamos los resultados:
 graf.rorac <- ggplot(Resultados.rorac %>% 
-                       filter(!Entidad == "Mercado")) +
-  geom_point(aes(x = seq(0,0.2, 0.2/(nrow(Resultados.rorac)-2)),
+                       filter(!Entidad %in% c("Benchmark", "Óptimo"))) +
+  geom_point(aes(x = seq(0,0.2, 0.2/(nrow(Resultados.rorac)-3)),
                  y=RORAC,color=Entidad), size=3) +
   geom_text(data = Resultados.rorac %>%
-              filter(Entidad == "Mercado"), 
+              filter(Entidad %in% c("Benchmark")), 
             aes(x = 0, y=RORAC,label = Entidad), color = "red",
+            nudge_x = 0.19, nudge_y = 0.9) +
+  geom_text(data = Resultados.rorac %>%
+              filter(Entidad %in% c("Óptimo")), 
+            aes(x = 0, y=RORAC,label = Entidad), color = "steelblue",
             nudge_x = 0.19, nudge_y = 0.9) +
   xlim(0,0.2) +
   theme_bw() +
   ylim(as.numeric(min(Resultados.rorac$RORAC))*(1-0.5),
        as.numeric(max(Resultados.rorac$RORAC))*(1+0.5)) +
-  geom_hline(yintercept= 100*RORAC.G, 
+  geom_hline(yintercept= 100*RORAC.Bench, 
              linetype="dashed", color = "red") +
+  geom_hline(yintercept= 100*RORAC.opti, 
+             linetype="dashed", color = "steelblue") +
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank()) +
@@ -1788,23 +1936,31 @@ graf.rorac
 
 # Visualizamos la Frontera Eficiente:
 graf.efi <- ggplot(Resultados.rorac %>% 
-                     filter(!Entidad == "Mercado"), 
+                     filter(!Entidad %in% c("Benchmark", "Óptimo")), 
                    aes(x = CVaR, y = Rendimiento)) +
   geom_point(aes(color = Entidad), size=3) +
 theme(axis.text.x=element_blank(),
       axis.ticks.x=element_blank()) +
   ylab("Rendimiento (%)") +
   xlab("CVaR") +
-  geom_text(data = Resultados.rorac %>% filter(Entidad == "Mercado"),
+  geom_text(data = Resultados.rorac %>% filter(Entidad == "Benchmark"),
             aes(x = CVaR, y=RORAC,label = Entidad),
-            color = "black", nudge_y = 4) +
-  geom_point(data = Resultados.rorac %>% filter(Entidad == "Mercado"),
-            aes(x = CVaR, y=RORAC))
+            color = "red", nudge_y = 4) +
+  geom_point(data = Resultados.rorac %>% filter(Entidad == "Benchmark"),
+            aes(x = CVaR, y=RORAC)) +
+  geom_text(data = Resultados.rorac %>% filter(Entidad == "Óptimo"),
+            aes(x = CVaR, y=RORAC,label = Entidad),
+            color = "steelblue", nudge_y = 4) +
+  geom_point(data = Resultados.rorac %>% filter(Entidad == "Óptimo"),
+             aes(x = CVaR, y=RORAC))
 graf.efi
 
 
 ##############################################################################
 
 
-
-
+                       ###########################
+                       ###                     ###
+                       ###        FIN          ###
+                       ###                     ###
+                       ###########################
