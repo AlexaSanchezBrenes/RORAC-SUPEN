@@ -527,26 +527,28 @@ Optimizacion.F <- function(fila){
   return(cbind(fila,Parametro=Optimizacion$x,Error=Optimizacion$fvec))
 }
 
-#
+# Se pondera el precio observado de cada bono tasa fija en función de su valor facial:
 PRECIOS.OBS <- BONOS.TF %>% group_by(COD_ISIN) %>%
   mutate(PONDERADOR=VAL_FAC/sum(VAL_FAC)) %>% 
   mutate(PRECIO.POND=PONDERADOR*PRECIO) %>% 
   summarise(PRECIO.OBS=sum(PRECIO.POND), .groups = "keep")
+
+# Se seleccionan las observaciones con características únicas de los bonos tasa fija y se adiciona el precio ponderado:
 BONOS.TF.RESUMEN<- BONOS.TF %>%
   distinct(COD_ISIN,TIP_PER,FEC_DAT,FEC_VEN,TAS_FAC,COD_MON,COD_EMI,COD_INS)
 BONOS.TF.RESUMEN <- left_join(BONOS.TF.RESUMEN,PRECIOS.OBS, by = "COD_ISIN")
 
-#
+# Se aplica la función de optimización para determinar el parámetro mu óptimo de cada bono tasa fija con características únicas:
 Optimizacion.TF <- lapply(split(BONOS.TF.RESUMEN, seq(nrow(BONOS.TF.RESUMEN))), Optimizacion.F)
 
-#
+# Se convierte a data frame la base que consolida las otras características de los bonos tasa fija con su parámetro mu óptimo y el error de optimización:
 Optimizacion.TF <- data.frame(matrix(unlist(Optimizacion.TF), 
                                      nrow = length(Optimizacion.TF), byrow = T))
 colnames(Optimizacion.TF) <- c(colnames(BONOS.TF.RESUMEN),"Parametro",
                                "Error")
 Optimizacion.TF$Parametro <- as.numeric(Optimizacion.TF$Parametro)
 
-#
+# Se agrega el parámetro mu óptimo de cada bono con características únicas a la base que contiene todos los bonos tasa fija:
 BONOS.TF <- left_join(BONOS.TF,Optimizacion.TF[,c("COD_ISIN","Parametro")],
                       by = "COD_ISIN")
 
@@ -598,7 +600,7 @@ Optimizacion.V <- function(fila){
                Error = Optimizacion$fvec))
 }
 
-#
+# Se pondera el precio observado de cada bono tasa variable en función de su valor facial:
 PRECIOS.OBS <- BONOS.TV %>% 
   group_by(COD_ISIN) %>% 
   mutate(PONDERADOR = VAL_FAC/sum(VAL_FAC)) %>% 
@@ -606,21 +608,21 @@ PRECIOS.OBS <- BONOS.TV %>%
   summarise(PRECIO.OBS = sum(PRECIO.POND), 
             .groups = "keep")
 
-#
+# Se seleccionan las observaciones con características únicas de los bonos tasa variable y se adiciona el precio ponderado:
 BONOS.TV.RESUMEN<- BONOS.TV %>% 
   distinct(COD_ISIN, TIP_PER, FEC_DAT, FEC_VEN, COD_MON, MAR_FIJ, COD_INS, COD_EMI)
 BONOS.TV.RESUMEN <- left_join(BONOS.TV.RESUMEN, PRECIOS.OBS, by = "COD_ISIN")
 
-#
+# Se aplica la función de optimización para determinar el parámetro mu óptimo de cada bono tasa variable con características únicas:
 Optimizacion.TV <-lapply(split(BONOS.TV.RESUMEN, seq(nrow(BONOS.TV.RESUMEN))), Optimizacion.V)
 
-#
+# Se convierte a data frame la base que consolida las otras características de los bonos tasa variable con su parámetro mu óptimo y el error de optimización:
 Optimizacion.TV <- data.frame(matrix(unlist(Optimizacion.TV),
                                      nrow = length(Optimizacion.TV), byrow = T))
 colnames(Optimizacion.TV) <- c(colnames(BONOS.TV.RESUMEN),
                                "Parametro", "Error")
 
-#
+# Se agrega el parámetro mu óptimo de cada bono con características únicas a la base que contiene todos los bonos tasa variable:
 BONOS.TV <- left_join(BONOS.TV, Optimizacion.TV[, c("COD_ISIN", "Parametro")],
                       by = "COD_ISIN")
 BONOS.TV <- BONOS.TV %>% mutate(Parametro = as.numeric(Parametro))
@@ -631,7 +633,7 @@ BONOS.TV <- BONOS.TV %>% mutate(Parametro = as.numeric(Parametro))
 
 #------------------------------ Tasa Fija ------------------------------------
 
-# 
+# Función que calcula el precio teórico de un bono tasa fija incluyendo su riesgo crediticio:
 PRECIO.TEORICO.TF2 <- function(fila){
   
   # Creamos el Tau del ponderador:
@@ -659,22 +661,24 @@ PRECIO.TEORICO.TF2 <- function(fila){
   return(cbind(fila, Precio.Teorico))
 }
 
-#
+# Se seleccionan las observaciones con características únicas de los bonos tasa fija:
 BONOS.TF.RESUMEN <- BONOS.TF %>%
   distinct(COD_ISIN,TIP_PER,FEC_DAT,FEC_VEN,TAS_FAC,COD_MON,COD_EMI,Parametro,ES_REDE)
 
-#
+# Se calcula el precio teórico de cada bono tasa fija con características únicas: 
 PRECIO.TF <- lapply(split(BONOS.TF.RESUMEN, seq(nrow(BONOS.TF.RESUMEN))),
                     PRECIO.TEORICO.TF2)
 
-#
+# Se convierte a data frame la base que consolida las otras características de los bonos tasa fija con su precio teórico:
 PRECIO.TF <- data.frame(matrix(unlist(PRECIO.TF), nrow=length(PRECIO.TF), 
                                byrow = T))
 colnames(PRECIO.TF) <- c(colnames(BONOS.TF.RESUMEN), "PRECIO_TEORICO_0")
 
-#
+# Se agrega el precio teórico de cada bono con características únicas a la base que contiene todos los bonos tasa fija:
 BONOS.TF <- left_join(BONOS.TF,PRECIO.TF[,c('COD_ISIN','PRECIO_TEORICO_0')],
                       by = "COD_ISIN")
+
+# Se convierte a colones el precio teórico en el caso de los bonos tasa fija en dólares:
 BONOS.TF <- BONOS.TF %>% mutate(FACTOR_TC = ifelse(COD_MON == 1, 1, TC)) %>% 
   mutate(PRECIO_TEORICO_0 = as.numeric(PRECIO_TEORICO_0)) %>%
  mutate(PRECIO_TEORICO_0 = PRECIO_TEORICO_0*FACTOR_TC)
@@ -683,7 +687,7 @@ BONOS.TF <- BONOS.TF %>% mutate(FACTOR_TC = ifelse(COD_MON == 1, 1, TC)) %>%
 #----------------------------- Tasa Variable ---------------------------------
 
 
-#
+# Función que calcula el precio teórico de un bono tasa variable incluyendo su riesgo crediticio:
 PRECIO.TEORICO.TV2 <- function(fila){
   
   # Creamos el Tau del ponderador:
@@ -708,24 +712,26 @@ PRECIO.TEORICO.TV2 <- function(fila){
   return(cbind(fila,Precio.Teorico))
 }
 
-#
+# Se seleccionan las observaciones con características únicas de los bonos tasa variable:
 BONOS.TV.RESUMEN <- BONOS.TV %>%
   distinct(COD_ISIN,TIP_PER,FEC_DAT,FEC_VEN,TAS_FAC,COD_MON,
            COD_EMI,COD_INS,MAR_FIJ, Parametro,ES_REDE) %>%
   mutate(Parametro = as.numeric(Parametro))
 
-#
+# Se calcula el precio teórico de cada bono tasa variable con características únicas: 
 PRECIO.TV <-lapply(split(BONOS.TV.RESUMEN,seq(nrow(BONOS.TV.RESUMEN))),
                    PRECIO.TEORICO.TV2)
 
-#
+# Se convierte a data frame la base que consolida las otras características de los bonos tasa variable con su precio teórico:
 PRECIO.TV <- data.frame(matrix(unlist(PRECIO.TV), nrow=length(PRECIO.TV), 
                                byrow=T))
 colnames(PRECIO.TV)<-c(colnames(BONOS.TV.RESUMEN),"PRECIO_TEORICO_0") 
 
-#
+# Se agrega el precio teórico de cada bono con características únicas a la base que contiene todos los bonos tasa variable:
 BONOS.TV <- left_join(BONOS.TV,PRECIO.TV[,c('COD_ISIN','PRECIO_TEORICO_0')], 
                       by = "COD_ISIN")
+
+# Se convierte a colones el precio teórico en el caso de los bonos tasa variable en dólares:
 BONOS.TV <- BONOS.TV %>% mutate(FACTOR_TC=ifelse(COD_MON==1,1,TC)) %>%
   mutate(PRECIO_TEORICO_0=as.numeric(PRECIO_TEORICO_0)) %>%
   mutate(PRECIO_TEORICO_0=PRECIO_TEORICO_0*FACTOR_TC)
@@ -830,7 +836,7 @@ Arbol.HL.desc <- function(tiempo){
   return(vect_D_0_T)
 }
 
-# 
+# Matriz que consolida las trayectorias de las curvas de tasas de interés en colones:
 Matriz.trayectorias.col = matrix(nrow = cant.simu, ncol = tiempo)
   
 for (i in 1:cant.simu){
