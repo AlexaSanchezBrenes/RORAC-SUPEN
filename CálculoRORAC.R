@@ -388,7 +388,7 @@ Inflacion_Interp <- function(tau){
 
 #------------------------------ Tasa Fija ------------------------------------
 
-
+# Función que calcula la tasa par para los bonos tasa fija:
 TIR.TF <- function(fila){
     if(fila[,"COD_INS"] %in% c("tudes","TUDES")){
       # Creamos el Tau del ponderador:
@@ -417,6 +417,7 @@ TIR.TF <- function(fila){
         mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+TAS_FAC/100,TAS_FAC/100))
     }
     
+  # Esta función calcula el error de la tasa par:
     TIR <- function(tasa){
       tabla <- tabla %>% mutate(desc=(1+tasa)^-tau) %>%
         mutate(Pago_desc=Pago*desc)
@@ -428,20 +429,22 @@ TIR.TF <- function(fila){
     
 }
 
-#
+# Se seleccionan las observaciones con características únicas de los bonos tasa fija:
 BONOS.TF.RESUMEN <- BONOS.TF %>%
   distinct(COD_ISIN,TIP_PER,FEC_DAT,FEC_VEN,TAS_FAC,COD_INS)
 
-#
+# Se encuentra la tasa par para cada bono tasa fija con características únicas:
 BONOS.TF2 <- lapply(split(BONOS.TF.RESUMEN,seq(nrow(BONOS.TF.RESUMEN))),TIR.TF)
 
-#
+# Se convierte a data frame la base que consolida las otras características de los bonos tasa fija con su respectiva tasa par:
 BONOS.TF2 <- data.frame(matrix(unlist(BONOS.TF2), nrow=length(BONOS.TF2), byrow=T))
 colnames(BONOS.TF2) <- c(colnames(BONOS.TF.RESUMEN),'TIR')
+
+# Se convierten en variables numéricas la tasa facial, la periodicidad y la tasa par:
 BONOS.TF2 <- BONOS.TF2 %>% 
   mutate(TAS_FAC=as.numeric(TAS_FAC),TIP_PER=as.numeric(TIP_PER),TIR=as.numeric(TIR))
 
-#
+# Se agrega la tasa par de cada bono con características únicas a la base que contiene todos los bonos tasa fija:
 BONOS.TF <- left_join(BONOS.TF,BONOS.TF2, by = c("FEC_DAT", "COD_INS", "FEC_VEN", "COD_ISIN", "TAS_FAC", "TIP_PER"))
 
 
@@ -453,16 +456,16 @@ curva.tasas <- list(Tasa = Curva.Espectativas)
 curva.tasas <- rep(curva.tasas, times = length(unique(BONOS.TV$COD_INS)))
 names(curva.tasas) <- unique(BONOS.TV$COD_INS)
 
-# 
+# Función que devuelve la tasa de interés a un plazo tau correspondiente a un nemotécnico específico:
 Cupones.variables <- function(tau,nemotec){
   tasa <- approxfun(curva.tasas[[nemotec]]$Tau,curva.tasas[[nemotec]]$Tasa)(tau)
   return(tasa)
 }
 
-# 
+# Función vectorizada que devuelve la tasa de interés a un plazo tau correspondiente a un nemotécnico específico:
 V_Cupones.variables <- Vectorize(Cupones.variables)
 
-#
+# Función que calcula la tasa par para los bonos tasa variable:
 TIR.TV <- function(fila){
   # Creamos el Tau del ponderador:
   if(fila[,"TIP_PER"]==0){
@@ -476,7 +479,7 @@ TIR.TV <- function(fila){
       mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100,(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100))
   }
   
-  #
+  # Esta función calcula el error de la tasa par:
   TIR<-function(tasa){
     tabla<-tabla %>% 
       mutate(desc=(1+tasa)^-tau) %>% mutate(Pago_desc=Pago*desc)
@@ -487,22 +490,22 @@ TIR.TV <- function(fila){
   return(cbind(fila,TIR=Opt$x))
 }
 
-#
+# Se seleccionan las observaciones con características únicas de los bonos tasa variable:
 BONOS.TV.RESUMEN <- BONOS.TV %>% 
   distinct(COD_ISIN,FEC_DAT,FEC_VEN,COD_INS,TIP_PER,MAR_FIJ)
 
-#
+# Se encuentra la tasa par para cada bono tasa variable con características únicas:
 BONOS.TV2 <- lapply(split(BONOS.TV.RESUMEN, seq(nrow(BONOS.TV.RESUMEN))),TIR.TV)
 
-#
+# # Se convierte a data frame la base que consolida las otras características de los bonos tasa variable con su respectiva tasa par:
 BONOS.TV2 <- data.frame(matrix(unlist(BONOS.TV2), nrow = length(BONOS.TV2), byrow = T))
 colnames(BONOS.TV2) <- c(colnames(BONOS.TV.RESUMEN), 'TIR')
 
-#
+# Se convierten en variables numéricas la periodicidad, el margen y la tasa par:
 BONOS.TV2 <- BONOS.TV2 %>% 
   mutate(TIP_PER = as.numeric(TIP_PER), MAR_FIJ = as.numeric(MAR_FIJ), TIR = as.numeric(TIR))
 
-#
+# Se agrega la tasa par de cada bono con características únicas a la base que contiene todos los bonos tasa variable:
 BONOS.TV <- left_join(BONOS.TV,BONOS.TV2, by = c("FEC_DAT", "COD_INS", "MAR_FIJ", "FEC_VEN", "COD_ISIN", "TIP_PER"))
 
 
@@ -520,7 +523,7 @@ Optimizacion.F <- function(fila){
     Optimizacion <- list(x=0,fvec=0)
     }else{
       Optimizacion<-nleqslv(0,FuncionObjetivo)
-      }  #ARREGLAR
+      }  
   return(cbind(fila,Parametro=Optimizacion$x,Error=Optimizacion$fvec))
 }
 
