@@ -151,7 +151,7 @@ lista.df<-function(path=Dir){
   return(lista.df)
 }
 
-# Se ejecuta la carga de datos.
+# Se ejecuta la carga de datos:
 tabla <- lista.df(Dir)
 
 # Carga de tipo de cambio:
@@ -476,6 +476,7 @@ TIR.TV <- function(fila){
       mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100,(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100))
   }
   
+  #
   TIR<-function(tasa){
     tabla<-tabla %>% 
       mutate(desc=(1+tasa)^-tau) %>% mutate(Pago_desc=Pago*desc)
@@ -1113,10 +1114,11 @@ Redencion_TF <- function(fila){
       return(Factor)
     }
     
-    
+    #
     Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc_reden)
     Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico), 
                                         nrow=length(Precio.Teorico), byrow=T))
+    # 
     Precio.Teorico <- Precio.Teorico*tabla$Pago
     Precio.Teorico<- apply(Precio.Teorico,2,sum)
     
