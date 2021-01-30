@@ -1,20 +1,25 @@
 #                     Consultoría RORAC-SUPEN 
-#     Módulo de backtesting del cálculo de rendimientos del portafolio
+#     Backtesting del Cálculo de Rendimientos del Portafolio
 
 # Autores:
 # Alexa Sánchez
 # Isaac Z. Arias
 
-# En este script calculamos los rendimientos del portafolio de bonos según 
-# la entidad que posea los títulos a un periodo de 12 meses (parámetro que
-# se puede cambiar) y finalmente se compara el rendimiento calculado con el modelo
-# con el rendimiento observado del flujo a ese momento. 
+# En este script se calculan los rendimientos esperados del portafolio para ser 
+# comparados con el valor del portafolio observado bajo ciertas hipótesis del
+# modelo, de manera que se visualice la capacidad predictiva del modelo. 
+# El código se distribuye de la siguiente manera:
 #             
+#
+#
+#
+#
+#############################################################################
 
 
                        #################################
                        ###                           ###
-                       ###   Backtesting             ###
+                       ###    1. Módulo General      ###
                        ###                           ###
                        #################################
 
@@ -69,6 +74,10 @@ confianza <- 1/100
 # Cantidad de periodos hacia adelante para hacer backtesting:
 Periodo_bt <- 5 
 
+# Límite de rendimiento de acciones permitido:
+lim.rend <- 700
+
+
 ############################## Carga de Datos ################################
 
 
@@ -79,7 +88,7 @@ Dir <- "C:/Users/EQUIPO/Desktop/Estudios/RORAC-SUPEN/Títulos"
 #Input: archivos .txt que contienen la información de las transacciones
 lee.datos <<- function(archivo){
   
-  tbl <- as.data.frame(unclass(read.table(archivo, 
+  tbl<- as.data.frame(unclass(read.table(archivo, 
                                          header = TRUE, 
                                          encoding = "Latin1",
                                          stringsAsFactors = F)))
@@ -104,7 +113,7 @@ lista.df<-function(path=Dir){
   return(lista.df)
 }
 
-# Se ejecuta la carga de datos.
+# Se ejecuta la carga de datos:
 tabla <- lista.df(Dir)
 
 # Carga de tipo de cambio:
@@ -122,11 +131,12 @@ titulos.nuevos <- tabla[14:26]
 titulos.viejos <- do.call("rbind", titulos.viejos)
 titulos.nuevos <- do.call("rbind", titulos.nuevos)
 titulos.viejos <- titulos.viejos %>% select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR,FEC_VEN,COD_ISIN,TAS_FAC,PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,COD_FON)
-titulos.viejos <- cbind(titulos.viejos,rep('NA',nrow(titulos.viejos)))
-titulos.nuevos <- titulos.nuevos %>% select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,COD_FON,ES_REDE)
+titulos.nuevos <- titulos.nuevos %>% select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,COD_FON,ES_REDE,ADMIN,COD_SEC)
+titulos.viejos <- cbind(titulos.viejos, 
+                        matrix(rep('NA', nrow(titulos.viejos)*(ncol(titulos.nuevos)-ncol(titulos.viejos))), ncol = (ncol(titulos.nuevos)-ncol(titulos.viejos))))
 colnames(titulos.viejos) <- colnames(titulos.nuevos)
 
-titulos.viejos <- titulos.viejos %>% filter(COD_ISIN %in% unique(titulos.nuevos$COD_ISIN)) # Se pierden 311 074 obs
+titulos.viejos <- titulos.viejos %>% filter(COD_ISIN %in% unique(titulos.nuevos$COD_ISIN))
 
 titulos <- rbind(titulos.viejos,titulos.nuevos)
 
@@ -137,8 +147,7 @@ titulos <- titulos %>% mutate(COD_MOD_INV =
                                 case_when(COD_MOD_INV %in% c("DR","DO","DT", "DD") ~ "D2",
                                           COD_MOD_INV %in% c("M1","v1","A1") ~ "P1",
                                           COD_MOD_INV == "V2" ~ "P2",
-                                          TRUE ~ COD_MOD_INV
-                                ))
+                                          TRUE ~ COD_MOD_INV))
 
 
 # Eliminamos recompras
@@ -146,11 +155,12 @@ titulos <- titulos %>% filter(COD_MOD_INV != 'RE')
 
 # Filtramos los títulos que corresponden a bonos
 BONOS <- titulos %>% 
-  select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,ES_REDE) %>%
+  select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,ES_REDE,ADMIN,COD_SEC) %>%
   filter(!is.na(TIP_PER),!is.na(VAL_FAC),!is.na(FEC_VEN)) %>% mutate(PRECIO=VAL_MER/VAL_FAC)
 BONOS.PER.NA <- titulos %>% 
-  filter(COD_MOD_INV %in% c("DE","D1","D2","D3","DI","IE"),is.na(TIP_PER),!is.na(VAL_FAC),!is.na(FEC_VEN)) %>%
-  select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,ES_REDE) %>%
+  filter(COD_MOD_INV %in% c("DE","D1","D2","D3","DI","IE"),
+         is.na(TIP_PER),!is.na(VAL_FAC),!is.na(FEC_VEN)) %>%
+  select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,ES_REDE,ADMIN,COD_SEC) %>%
   mutate(TIP_PER=0) %>% mutate(PRECIO=VAL_MER/VAL_FAC)
 
 #
@@ -1155,12 +1165,12 @@ Redencion_TF <- function(fila){
       mutate(PRECIO1=V_Precio1(k,Periodo_Venta),
              PrecioInicial=t(as.matrix(BONOS.TF.RESULTADOS[which(BONOS.TF.RESULTADOS$COD_ISIN==
                                                                    fila[,'COD_ISIN'])[1],
-                                                           6:ncol(BONOS.TF.RESULTADOS)]))) %>%
+                                                           8:ncol(BONOS.TF.RESULTADOS)]))) %>%
       mutate(PRECIOFINAL=ifelse(is.na(PRECIO1),PrecioInicial,PRECIO1))
     
     #
     BONOS.TF.RESULTADOS[which(BONOS.TF.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']),
-                        6:ncol(BONOS.TF.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
+                        8:ncol(BONOS.TF.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
                                                           each=length(which(BONOS.TF.RESULTADOS$COD_ISIN==
                                                                               fila[,'COD_ISIN']))),byrow = F,nrow = length(which(BONOS.TF.RESULTADOS$COD_ISIN==
                                                                                                                                    fila[,'COD_ISIN'])))   
@@ -1401,12 +1411,12 @@ Redencion_TV <- function(fila){
       data.frame <- data.frame %>% mutate(k=1:nrow(data.frame)) %>% 
         mutate(PRECIO1=V_Precio1(k,Periodo_Venta),
                PrecioInicial=t(as.matrix(BONOS.TV.RESULTADOS[which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])[1],
-                                                             6:ncol(BONOS.TV.RESULTADOS)]))) %>%
+                                                             8:ncol(BONOS.TV.RESULTADOS)]))) %>%
         mutate(PRECIOFINAL=ifelse(is.na(PRECIO1),PrecioInicial,PRECIO1))
        
       #
       BONOS.TV.RESULTADOS[which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']),
-                          6:ncol(BONOS.TV.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
+                          8:ncol(BONOS.TV.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
                                                             each=length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']))),byrow = F,nrow = length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])))   
   }
 }
@@ -1435,7 +1445,7 @@ matriz.R <- ACCIONES %>% group_by(FEC_DAT, COD_ISIN, COD_ENT) %>%
   mutate(nr=row_number()) %>% mutate(MAX=max(nr)) %>% filter(MAX==nr) %>%
   ungroup() %>% 
   select(-nr,-MAX)
-    
+
 # Se encuentran cuales son los títulos a valorar:
 titulos.ul <- matriz.R %>% 
   mutate(fec.valoracion = paste(year(FEC_DAT),month(FEC_DAT),sep="-")) %>% 
@@ -1457,23 +1467,23 @@ matriz.R <- as.matrix(matriz.R %>% filter(exa.fec>=FEC_DAT) %>%
                         ungroup %>%
                         spread(FEC_DAT, Precio) %>% 
                         select(-rn))
-    
+
 # Precio Inicial sin segregar:
 Ini.pre <- matriz.R[, c(1,ncol(matriz.R))] 
-    
+
 # Cambian los índices:
 indices <- matriz.R[,1]
 matriz.R <- matriz.R[,-1]
 matriz.R <- apply(matriz.R, 2, as.numeric)
 row.names(matriz.R) <- indices
-    
+
 # Total de observaciones por título:
 titulo.ob <- as.data.frame(rowSums(!is.na(matriz.R)) > (nrow(titulos.ul)+1))
 colnames(titulo.ob) <- "Criterio"
-    
+
 # Cantidad de titulos:
 cant.tit <- sum(titulo.ob$Criterio)
-    
+
 # Se calculan los pesos de los elementos no validos y validos:
 rep.acciones.val <- round(100*sum(as.numeric(matriz.R[titulo.ob$Criterio,
                                                       ncol(matriz.R)]),
@@ -1483,10 +1493,10 @@ rep.acciones.no.val <- round(100*sum(as.numeric(matriz.R[!titulo.ob$Criterio,
                                                          ncol(matriz.R)]),
                                      na.rm = TRUE)/sum(as.numeric(matriz.R[,ncol(matriz.R)]),
                                                        na.rm = TRUE),2)
-    
+
 # Se segregan los elementos a valorar:
 matriz.R <- matriz.R[titulo.ob$Criterio,]
-    
+
 # Se calculan los rendimientos:
 matriz.R1 <- (matriz.R[,-c(1, (ncol(matriz.R)-2):ncol(matriz.R))]/
                 matriz.R[,-((ncol(matriz.R)-3):ncol(matriz.R))])^30
@@ -1500,28 +1510,24 @@ matriz.R <- cbind(matriz.R1, matriz.R2)
 matriz.R <- ClustImpute(as.data.frame(matriz.R), 
                         nr_cluster = round((cant.tit+1)/2),
                         nr_iter = 10)$complete_data
-    
+
 # Se traspone la matriz:
 matriz.R <- t(as.matrix(matriz.R))
-    
-# Se crean los conjuntos de eventos con clasificación jerarquica:
-#acc.clas <- hclust(dist(matriz.R, method = "euclidean"), method = "ward.D2")
-#acc.clas <- cutree(acc.clas, k = cant.tit+1)
-    
+
 # Se crean los conjuntos de eventos con clasificación por k-means:
 acc.clas <- kmeans(matriz.R, cant.tit+1, iter.max = 1000, 
                    nstart = 1000, algorithm = "MacQueen")$cluste
-    
+
 # Se aplica la nueva clasificación:
 matriz.R <- t(matriz.R)
-    
+
 # Porbabilidad Objetiva:
 prob.objetiva <- as.data.frame(table(acc.clas))$Freq/
   sum(as.data.frame(table(acc.clas))$Freq)
-    
+
 # Se calculan los representantes:
 matriz.R <- rowGrpMeans(matriz.R, as.factor(acc.clas))
-    
+
 # Segregamos los precios iniciales:
 Ini.pre <- as.data.frame(Ini.pre) %>% 
   filter(COD_ISIN %in% rownames(matriz.R))
@@ -1531,33 +1537,8 @@ colnames(Ini.pre) <- "acción"
 Ini.pre <- apply(Ini.pre, 2, as.numeric)
 row.names(Ini.pre) <- indexA
 
-######################## Simulación de Acciones ##############################
-
-# Se inicializa la matriz:
-simu.matriz <- matrix(row.names(matriz.R), ncol = 1)
-colnames(simu.matriz) <- "COD_ISIN"
-
-# Inicialización de la lista para backtesting:
-ACCIONES.BACK.SIMU <- list()
-
-# Se generan las simulaciones:
-for(mesi in 1:cant.simu){
-  
-  ejec <- matriz.R%*%rmultinom(Periodo, 1, prob.objetiva)
-  ejec <- t(apply(ejec, 1, cumprod))
-  
-  simu.matriz <- cbind(simu.matriz, ejec[,Periodo])
-  colnames(simu.matriz)[ncol(simu.matriz)] <- paste("simu",mesi)
-}
-
-# Se extrae la información de la simulación:
-ACCIONES.RESULTADOS <- ACCIONES %>%
-  filter(FEC_DAT==exa.fec, COD_ISIN%in%row.names(titulo.ob %>%
-                                                   filter(Criterio == TRUE))) %>% 
-  select(COD_ISIN, COD_ENT, COD_MOD_INV, VAL_FAC, Precio) %>% group_by(COD_ISIN, COD_ENT) %>% 
-  mutate(VAL_FAC = sum(VAL_FAC), Precio = mean(Precio)) %>% 
-  ungroup() %>% unique() %>%  
-  left_join(as.data.frame(simu.matriz), by="COD_ISIN")
+# Corrección de la matriz R:
+matriz.R[(lim.rend < matriz.R)] <- 1
 
 
 ##############################################################################
@@ -1599,7 +1580,7 @@ for(h in 2:Periodo_bt){
   if(mes < 12){
     
     #
-    mes<- mes+1
+    mes <- mes+1
     
 
     #
@@ -1758,4 +1739,29 @@ for(h in 2:Periodo_bt){
 ################################ Acciones ####################################
 
 
+# Se inicializa la matriz:
+simu.matriz <- matrix(row.names(matriz.R), ncol = 1)
+colnames(simu.matriz) <- "COD_ISIN"
 
+# Se generan las simulaciones:
+for(mesi in 1:cant.simu){
+  
+  # Se ejecuta la simulación para un periodo:
+  ejec <- matriz.R%*%rmultinom(Periodo, 1, prob.objetiva)
+  ejec <- apply(ejec, 1, prod)
+  
+  # Se guardan los resultados:
+  simu.matriz <- cbind(simu.matriz, ejec)
+  colnames(simu.matriz)[ncol(simu.matriz)] <- paste("X",mesi, sep = "")
+}
+
+# Se extrae la información de la simulación:
+ACCIONES.RESULTADOS <- ACCIONES %>%
+  filter(FEC_DAT==exa.fec, COD_ISIN%in%row.names(titulo.ob %>%
+                                                   filter(Criterio == TRUE))) %>% 
+  select(COD_ISIN, COD_ENT, COD_MOD_INV, ADMIN, COD_EMI, COD_SEC, VAL_FAC, Precio) %>% 
+  group_by(COD_ISIN, COD_ENT) %>% 
+  mutate(VAL_FAC = sum(VAL_FAC), Precio = mean(Precio)) %>% 
+  ungroup() %>% unique() %>%  
+  left_join(as.data.frame(simu.matriz), by="COD_ISIN") %>% 
+  rename(PRECIO_TEORICO_0 = Precio)
