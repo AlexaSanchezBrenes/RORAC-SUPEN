@@ -952,7 +952,7 @@ for (i in 1:cant.simu){
    
 ########################## Valoración de Bonos ###############################
     
-#   
+# Función que devuleve un vector con los factores de descuento que se debe aplicar a un flujo específico:  
 FactDesc <- function(fila){
   if (fila[,'COD_MON'] == 1){
     Factor<-Matriz.trayectorias.col[,floor(fila[,'tau'])]/
@@ -964,11 +964,11 @@ FactDesc <- function(fila){
   return(Factor)
 }
 
-#
+# Se agrega al data frame de bonos tasa fija con características únicas la probabilidad de sobrevivencia (de no caer en default) por el plazo del periodo:
 BONOS.TF.RESUMEN <- BONOS.TF.RESUMEN %>%
   mutate(Probabilidad=exp(-Parametro*Periodo))
  
-#     
+# Función para calcular el precio teórico de un bono tasa fija dadas las simulaciones de las trayectorias de tasas de interés:
 Tau.total.TF <- function(fila){
   if(fila[,"TIP_PER"]==0){
      tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
@@ -985,43 +985,44 @@ Tau.total.TF <- function(fila){
           mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+TAS_FAC/100,TAS_FAC/100))
        }
   
-  #    
+  # A la tabla de los flujos del bono tasa fija, se le aplica los factores de descuento para obtener los precios teóricos:    
   Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc)
   Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico),
                                       nrow=length(Precio.Teorico), byrow=T))
-  #
+  
+  # Se multiplica el factor de descuento con el pago de cada flujo para obtener el precio teórico final del bono tasa fija:
   Precio.Teorico <- Precio.Teorico*tabla$Pago
   Precio.Teorico<- apply(Precio.Teorico,2,sum)
    
   return(Precio.Teorico)
 }
     
-#
+# Se calcula los precios teóricos de cada trayectoria a cada bono tasa fija con caracetrísticas únicas:
 BONOS.TF.PRECIOS <-lapply(split(BONOS.TF.RESUMEN,seq(nrow(BONOS.TF.RESUMEN))),
                           Tau.total.TF)
 
-#
+# Se convierte a data frame la base que consolida las otras características de los bonos tasa fija con sus precios teóricos:
 BONOS.TF.PRECIOS <- data.frame(matrix(unlist(BONOS.TF.PRECIOS),
                                       nrow=length(BONOS.TF.PRECIOS), 
                                       byrow=T))
 
-#   
+# Función que devuelve las variable bernoullis indicando si el bono cayó o no en default en cada trayectoria:
 DEFAULT <- function(p){
   rbernoulli(n = cant.simu,p = p)
 }
 
-#   
+# Función vectorizada que devuelve las variable bernoullis indicando si el bono cayó o no en default en cada trayectoria:
 V_DEFAULT <- Vectorize(DEFAULT)
 
-#
+# Variables bernoullis que indican si el bono tasa fija cayó o no en default en cada trayectoria de acuerdo a su probabilidad de sobrevivencia:
 Bernoullis <- t(V_DEFAULT(BONOS.TF.RESUMEN$Probabilidad))
 
-#   
+# Data frame con los precios de los bonos tasa fija incluyendo el riesgo de default:  
 BONOS.TF.PRECIOS <- BONOS.TF.PRECIOS*Bernoullis
 BONOS.TF.PRECIOS <- cbind(BONOS.TF.RESUMEN$COD_ISIN,BONOS.TF.PRECIOS)
 colnames(BONOS.TF.PRECIOS)[1] <- 'COD_ISIN'
 
-#
+# Data frame que consolida los resultados de los precios de los bonos tasa fija para cada trayectoria así como su precio esperado y sus características:
 BONOS.TF.RESULTADOS <- BONOS.TF[,c('COD_ISIN',
                                    'COD_ENT',
                                    'COD_MOD_INV',
