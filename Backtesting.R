@@ -168,7 +168,6 @@ BONOS <- rbind(BONOS,BONOS.PER.NA)
 ACCIONES <- titulos %>% 
   filter(!(COD_ISIN %in% unique(BONOS$COD_ISIN))) 
 
-
 # Se agregan los tipos de cambio del BCCR:
 ACCIONES <- ACCIONES %>% ungroup() %>%  
   mutate(FEC_DAT=as.Date(FEC_DAT)) %>% 
@@ -1165,12 +1164,12 @@ Redencion_TF <- function(fila){
       mutate(PRECIO1=V_Precio1(k,Periodo_Venta),
              PrecioInicial=t(as.matrix(BONOS.TF.RESULTADOS[which(BONOS.TF.RESULTADOS$COD_ISIN==
                                                                    fila[,'COD_ISIN'])[1],
-                                                           8:ncol(BONOS.TF.RESULTADOS)]))) %>%
+                                                           6:ncol(BONOS.TF.RESULTADOS)]))) %>%
       mutate(PRECIOFINAL=ifelse(is.na(PRECIO1),PrecioInicial,PRECIO1))
     
     #
     BONOS.TF.RESULTADOS[which(BONOS.TF.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']),
-                        8:ncol(BONOS.TF.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
+                        6:ncol(BONOS.TF.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
                                                           each=length(which(BONOS.TF.RESULTADOS$COD_ISIN==
                                                                               fila[,'COD_ISIN']))),byrow = F,nrow = length(which(BONOS.TF.RESULTADOS$COD_ISIN==
                                                                                                                                    fila[,'COD_ISIN'])))   
@@ -1411,12 +1410,12 @@ Redencion_TV <- function(fila){
       data.frame <- data.frame %>% mutate(k=1:nrow(data.frame)) %>% 
         mutate(PRECIO1=V_Precio1(k,Periodo_Venta),
                PrecioInicial=t(as.matrix(BONOS.TV.RESULTADOS[which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])[1],
-                                                             8:ncol(BONOS.TV.RESULTADOS)]))) %>%
+                                                             6:ncol(BONOS.TV.RESULTADOS)]))) %>%
         mutate(PRECIOFINAL=ifelse(is.na(PRECIO1),PrecioInicial,PRECIO1))
        
       #
       BONOS.TV.RESULTADOS[which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']),
-                          8:ncol(BONOS.TV.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
+                          6:ncol(BONOS.TV.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
                                                             each=length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']))),byrow = F,nrow = length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])))   
   }
 }
@@ -1440,6 +1439,10 @@ for(j in 1:nrow(RESUMEN.TV)){
 ################## Manipulación e Imputación de Datos ########################
 
 
+# Se fijan las fechas iniciales:
+mesa <- mes
+annoa <- anno
+
 # Se inicializa la matriz R:
 matriz.R <- ACCIONES %>% group_by(FEC_DAT, COD_ISIN, COD_ENT) %>% 
   mutate(nr=row_number()) %>% mutate(MAX=max(nr)) %>% filter(MAX==nr) %>%
@@ -1449,7 +1452,7 @@ matriz.R <- ACCIONES %>% group_by(FEC_DAT, COD_ISIN, COD_ENT) %>%
 # Se encuentran cuales son los títulos a valorar:
 titulos.ul <- matriz.R %>% 
   mutate(fec.valoracion = paste(year(FEC_DAT),month(FEC_DAT),sep="-")) %>% 
-  filter(fec.valoracion==paste(anno,mes,sep="-"))
+  filter(fec.valoracion==paste(annoa,mesa,sep="-"))
 exa.fec <- max(titulos.ul$FEC_DAT)
 titulos.ul <- titulos.ul %>% filter(FEC_DAT == exa.fec) %>% 
   select(COD_ISIN) %>% unique()
@@ -1539,6 +1542,17 @@ row.names(Ini.pre) <- indexA
 
 # Corrección de la matriz R:
 matriz.R[(lim.rend < matriz.R)] <- 1
+
+# Se extrae la información actual:
+ACCIONES.act <- ACCIONES %>%
+  filter(FEC_DAT==exa.fec, 
+         COD_ISIN%in%row.names(titulo.ob %>%
+                                 filter(Criterio == TRUE))) %>% 
+  select(COD_ISIN, COD_ENT, VAL_FAC, Precio) %>% 
+  group_by(COD_ISIN, COD_ENT) %>% 
+  mutate(VAL_FAC = sum(VAL_FAC), Precio = mean(Precio)) %>% 
+  ungroup() %>% unique() %>% 
+  rename(PRECIO_TEORICO_0 = Precio)
 
 
 ##############################################################################
@@ -1737,31 +1751,80 @@ for(h in 2:Periodo_bt){
 
 
 ################################ Acciones ####################################
-
+annoa <- anno
+mesa <- mes
+# Inicialización de data observada:
+lista.Acciones.per <- list()
 
 # Se inicializa la matriz:
-simu.matriz <- matrix(row.names(matriz.R), ncol = 1)
-colnames(simu.matriz) <- "COD_ISIN"
+simu.matriz <- cbind(matrix(row.names(matriz.R), ncol = 1), 
+                     matrix(rep(1, cant.simu*nrow(matriz.R)), 
+                            nrow = nrow(matriz.R),  byrow = TRUE))
+lista.simu.per <- list()
 
-# Se generan las simulaciones:
-for(mesi in 1:cant.simu){
+for(i in 1:Periodo_bt){
+i <- 1
+    if(mesa<13){
+    
+    # Se aumenta el periodo:
+    mesa <- 1+mesa
+    
+    # Se generan los títulos:
+    titulos.ul.b <- ACCIONES %>% 
+      mutate(fec.valoracion = paste(year(FEC_DAT),month(FEC_DAT),sep="-")) %>% 
+      filter(fec.valoracion==paste(annoa,mesa,sep="-"))
+    exa.fec.b <- max(titulos.ul.b$FEC_DAT)
+    titulos.ul.b <- titulos.ul.b %>% filter(FEC_DAT == exa.fec.b) %>% 
+      select(COD_ISIN) %>% unique()
+    
+    Acciones.i <- ACCIONES %>%
+      filter(FEC_DAT==exa.fec.b, COD_ISIN %in% intersect(titulos.ul$COD_ISIN,
+                                                         titulos.ul.b$COD_ISIN)) %>% 
+      select(COD_ISIN, COD_ENT, VAL_FAC, Precio) %>% 
+      group_by(COD_ISIN, COD_ENT) %>% 
+      mutate(VAL_FAC = sum(VAL_FAC), Precio = mean(Precio)) %>% 
+      ungroup() %>% unique() %>% 
+      rename(PRECIO_TEORICO_0 = Precio)
+      
+    
+    # Se saca la intersección:
+    lista.Acciones.per[[i]] <- Acciones.i
+    
+  }else{
+    mesa <- mesa-12
+    annoa <- annoa+1
+    
+    # Se generan los títulos:
+    titulos.ul.b <- ACCIONES %>% 
+      mutate(fec.valoracion = paste(year(FEC_DAT),month(FEC_DAT),sep="-")) %>% 
+      filter(fec.valoracion==paste(annoa,mesa,sep="-"))
+    exa.fec.b <- max(titulos.ul.b$FEC_DAT)
+    titulos.ul.b <- titulos.ul.b %>% filter(FEC_DAT == exa.fec.b) %>% 
+      select(COD_ISIN) %>% unique()
+    
+    Acciones.i <- ACCIONES %>%
+      filter(FEC_DAT==exa.fec.b, COD_ISIN %in% intersect(titulos.ul$COD_ISIN,
+                                                         titulos.ul.b$COD_ISIN)) %>% 
+      select(COD_ISIN, COD_ENT, VAL_FAC, Precio) %>% 
+      group_by(COD_ISIN, COD_ENT) %>% 
+      mutate(VAL_FAC = sum(VAL_FAC), Precio = mean(Precio)) %>% 
+      ungroup() %>% unique() %>% 
+      rename(PRECIO_TEORICO_0 = Precio)
+    
+    
+    # Se saca la intersección:
+    lista.Acciones.per[[i]] <- Acciones.i
+  }
   
   # Se ejecuta la simulación para un periodo:
-  ejec <- matriz.R%*%rmultinom(Periodo, 1, prob.objetiva)
-  ejec <- apply(ejec, 1, prod)
+  ejec <- matriz.R%*%rmultinom(cant.simu, 1, prob.objetiva)
   
   # Se guardan los resultados:
-  simu.matriz <- cbind(simu.matriz, ejec)
-  colnames(simu.matriz)[ncol(simu.matriz)] <- paste("X",mesi, sep = "")
+  simu.matriz <- cbind(simu.matriz[,1], as.numeric(simu.matriz[,-1])*ejec)
+  rownames(simu.matriz) <- 1:nrow(simu.matriz)
+  lista.simu.per[[i]] <- simu.matriz
+  
 }
 
-# Se extrae la información de la simulación:
-ACCIONES.RESULTADOS <- ACCIONES %>%
-  filter(FEC_DAT==exa.fec, COD_ISIN%in%row.names(titulo.ob %>%
-                                                   filter(Criterio == TRUE))) %>% 
-  select(COD_ISIN, COD_ENT, COD_MOD_INV, ADMIN, COD_EMI, COD_SEC, VAL_FAC, Precio) %>% 
-  group_by(COD_ISIN, COD_ENT) %>% 
-  mutate(VAL_FAC = sum(VAL_FAC), Precio = mean(Precio)) %>% 
-  ungroup() %>% unique() %>%  
-  left_join(as.data.frame(simu.matriz), by="COD_ISIN") %>% 
-  rename(PRECIO_TEORICO_0 = Precio)
+
+
