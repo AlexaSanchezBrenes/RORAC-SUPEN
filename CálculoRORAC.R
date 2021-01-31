@@ -1040,7 +1040,7 @@ BONOS.TF.RESULTADOS <- BONOS.TF[,c('COD_ISIN',
 #--------------- Ajuste para Redención Anticipada Tasa Fija ------------------
 
 
-# Bonos tasa fija con caracetrísticas únicas para calcular su redención:
+# Bonos tasa fija con características únicas para calcular su redención:
 RESUMEN.TF <- BONOS.TF %>% distinct(FEC_DAT,FEC_VEN,COD_ISIN,TAS_FAC,
                                     TIP_PER,COD_MON,ES_REDE,TIR,
                                     Parametro,COD_INS)
@@ -1052,7 +1052,6 @@ Redencion_TF <- function(fila){
   # Calcula el precio con el cual se debe comparar el precio del bono tasa fija para determinar si hay o no redención anticipada:
   Precio.gatillo <- function(fila,Contador){
       if(fila[,"COD_INS"] %in% c("tudes","TUDES")){
-      # Creamos el Tau del ponderador:
       if(fila[,"TIP_PER"]==0){
         tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
                                   Fecha.Pago = FEC_VEN,Pago=1+
@@ -1098,7 +1097,7 @@ Redencion_TF <- function(fila){
   # Se determina el precio para cada periodo con el cual se debe comparar el precio del bono tasa fija para determinar si hay o no redención anticipada:
   P_gatillo <- V_Precio.gatillo(fila,1:(Periodo-1))
   
-  # Función que calcula el precio teórico de un bono con la opción de rendención anticipada para un periodo determinado:
+  # Función que calcula el precio teórico de un bono tasa fija con la opción de rendención anticipada para un periodo determinado:
   Tau.total.TF_reden <- function(fila,Contador){
     if(fila[,"TIP_PER"]==0){
       tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
@@ -1143,7 +1142,7 @@ Redencion_TF <- function(fila){
   data.frame<-as.data.frame(rep(NA,cant.simu))
   colnames(data.frame)<-'Periodo_Venta'
   
-  
+  # Se determina el periodo de venta del bono tasa fija con redención anticipada:
   Periodo_Venta1<-NA
   k=1
   while(k<=length(P_gatillo) & sum(is.na(Periodo_Venta1))>0){
@@ -1159,6 +1158,7 @@ Redencion_TF <- function(fila){
     k=k+1
   }
   
+  # En caso de que el bono tasa fija se venda dentro del plazo del periodo (12 meses), se determina su precio de venta:
   if(sum(is.na(data.frame$Periodo_Venta))<nrow(data.frame)){
     # Función que calcula para cada trayectoria el precio de un bono tasa fija con redención anticipada en un periodo determinado:
     Precio1<-function(k,Contador){
@@ -1195,11 +1195,14 @@ Redencion_TF <- function(fila){
                                  TAS_FAC/100))
           }
           
+          # Se aplica la función de factores de descuento a cada flujo del bono tasa fija:
           Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),
                                    FactDesc_reden)
           Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico),
                                               nrow=length(Precio.Teorico),
                                               byrow=T))
+          
+          # Se multiplica el pago en cada periodo por el factor de descuento asociado: 
           Precio.Teorico <- Precio.Teorico*tabla$Pago
           Precio.Teorico<- sum(Precio.Teorico)
           
@@ -1273,30 +1276,32 @@ Tau.total.TV <- function(fila){
   Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico),
                                       nrow=length(Precio.Teorico), 
                                       byrow=T))
+  
+  # Se multiplica el factor de descuento con el pago de cada flujo para obtener el precio teórico final del bono tasa variable:
   Precio.Teorico <- Precio.Teorico*tabla$Pago
   Precio.Teorico<- apply(Precio.Teorico,2,sum)
   return(Precio.Teorico)
 }
     
-#
+# Se calcula los precios teóricos de cada trayectoria a cada bono tasa variable con caracetrísticas únicas:
 BONOS.TV.PRECIOS <-lapply(split(BONOS.TV.RESUMEN,seq(nrow(BONOS.TV.RESUMEN))),
                           Tau.total.TV)
 
-#
+# Se convierte a data frame la base que consolida las otras características de los bonos tasa variable con sus precios teóricos:
 BONOS.TV.PRECIOS <- data.frame(matrix(unlist(BONOS.TV.PRECIOS), 
                                       nrow=length(BONOS.TV.PRECIOS),
                                       byrow=T))
     
-#    
+# Variables bernoullis que indican si el bono tasa variable cayó o no en default en cada trayectoria de acuerdo a su probabilidad de sobrevivencia:
 Bernoullis <- t(V_DEFAULT(BONOS.TV.RESUMEN$Probabilidad))
 
-#  
+# Data frame con los precios de los bonos tasa variable incluyendo el riesgo de default: 
 BONOS.TV.PRECIOS <- BONOS.TV.PRECIOS*Bernoullis
 BONOS.TV.PRECIOS <- cbind(BONOS.TV.RESUMEN$COD_ISIN,
                           BONOS.TV.PRECIOS)
 colnames(BONOS.TV.PRECIOS)[1] <- 'COD_ISIN'
     
-#
+# Data frame que consolida los resultados de los precios de los bonos tasa variable para cada trayectoria así como su precio esperado y sus características:
 BONOS.TV.RESULTADOS <- BONOS.TV[,c('COD_ISIN',
                                    'COD_ENT',
                                    'COD_MOD_INV',
@@ -1310,15 +1315,19 @@ BONOS.TV.RESULTADOS <- BONOS.TV[,c('COD_ISIN',
   unique() %>% 
   right_join(BONOS.TV.PRECIOS, by = "COD_ISIN")
 
-#
+
+#--------------- Ajuste para Redención Anticipada Tasa Variable ------------------
+
+
+# Bonos tasa variable con características únicas para calcular su redención:
 RESUMEN.TV <- BONOS.TV %>% distinct(FEC_DAT,FEC_VEN,COD_ISIN,MAR_FIJ,
                                     TIP_PER,COD_MON,ES_REDE,TIR,
                                     Parametro,COD_INS)
 RESUMEN.TV <- RESUMEN.TV %>% filter(ES_REDE=='S')
 
-#
+# Función que calcula si un bono tasa variable se redime o no y su precio en ese periodo:
 Redencion_TV <- function(fila){
-  
+  # Calcula el precio con el cual se debe comparar el precio del bono tasa variable para determinar si hay o no redención anticipada:
     Precio.gatillo <- function(fila,Contador){
       
       if(fila[,"TIP_PER"]==0){
@@ -1346,10 +1355,13 @@ Redencion_TV <- function(fila){
       return(P_gatillo)
     }
     
+    # Función vectorizada que calcula el precio con el cual se debe comparar el precio del bono tasa variable para determinar si hay o no redención anticipada:
     V_Precio.gatillo<-Vectorize(Precio.gatillo,"Contador")
+    
+    # Se determina el precio para cada periodo con el cual se debe comparar el precio del bono tasa variable para determinar si hay o no redención anticipada:
     P_gatillo<-V_Precio.gatillo(fila,1:(Periodo-1))
     
-    #
+    # Función que calcula el precio teórico de un bono tasa variable con la opción de rendención anticipada para un periodo determinado:
     Tau.total.TV_reden <- function(fila,Contador){
       if(fila[,"TIP_PER"]==0){
         tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
@@ -1369,7 +1381,7 @@ Redencion_TV <- function(fila){
                              (V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100))
       }
       
-      #
+      # Vector de factores de descuento que se debe aplicar a un flujo determinado de un bono:
       FactDesc_reden <- function(fila){
         if (fila[,'COD_MON'] == 1){
           Factor<-Matriz.trayectorias.col[,floor(fila[,'tau'])]/
@@ -1381,22 +1393,24 @@ Redencion_TV <- function(fila){
         return(Factor)
       }
       
-      #
+      # A la tabla de los flujos del bono tasa variable con redención anticipada, se le aplica los factores de descuento para obtener los precios teóricos:    
       Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc_reden)
       Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico),
                                           nrow=length(Precio.Teorico),
                                           byrow=T))
+      
+      # Se multiplica el factor de descuento con el pago de cada flujo para obtener el precio teórico final del bono tasa variable con redención anticipada:
       Precio.Teorico <- Precio.Teorico*tabla$Pago
       Precio.Teorico <- apply(Precio.Teorico,2,sum)
       
       return(Precio.Teorico)
     }
     
-    #
+    # Data frame para incluir el periodo de venta de cada bono tasa variable con rendención anticipada y su precio respectivo:
     data.frame <- as.data.frame(rep(NA,cant.simu))
     colnames(data.frame) <- 'Periodo_Venta'
-    
-    #
+
+    # Se determina el periodo de venta del bono tasa variable con redención anticipada:
     Periodo_Venta1 <- NA
     k=1
     while(k <= length(P_gatillo) & sum(is.na(Periodo_Venta1))>0){
@@ -1411,12 +1425,14 @@ Redencion_TV <- function(fila){
       k=k+1
     }
     
-    #
+    # En caso de que el bono tasa variable se venda dentro del plazo del periodo (12 meses), se determina su precio de venta:
     if(sum(is.na(data.frame$Periodo_Venta))<nrow(data.frame)){
+      # Función que calcula para cada trayectoria el precio de un bono tasa variable con redención anticipada en un periodo determinado:
       Precio1<-function(k,Contador){
         if(is.na(Contador)){
           PRECIO1<-NA
         }else{
+          # Calcula el vector de los factores de descuento que se deben aplicar a un flujo determinado: 
           FactDesc_reden <- function(fila){
             if (fila[,'COD_MON'] == 1){
               Factor<-Matriz.trayectorias.col[k,floor(fila[,'tau'])]/
@@ -1427,7 +1443,7 @@ Redencion_TV <- function(fila){
             return(Factor)
           }
           
-          #
+          # Función que calcula para cada trayectoria el precio de un bono tasa variable con redención anticipada en un periodo determinado:
           Tau.total.TV_reden <- function(fila){
             if(fila[,"TIP_PER"]==0){
               tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
@@ -1445,44 +1461,43 @@ Redencion_TV <- function(fila){
                                    (V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100))
             }
             
-            #
+            # Se aplica la función de factores de descuento a cada flujo del bono tasa variable:
             Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc_reden)
             Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico),
                                                 nrow=length(Precio.Teorico), 
                                                 byrow=T))
+            # Se multiplica el pago en cada periodo por el factor de descuento asociado: 
             Precio.Teorico <- Precio.Teorico*tabla$Pago
             Precio.Teorico <- sum(Precio.Teorico)
             
             return(Precio.Teorico)
           }
             
-          #
           PRECIO1 <- Tau.total.TV_reden(fila)*rbernoulli(1,exp(-Contador*fila[,'Parametro']))
           
         }
         
-        #
         return(PRECIO1)
         }
       
-      # 
+      # Se vectoriza la función que calcula el precio en cada periodo de un bono con redención anticipada: 
       V_Precio1 <- Vectorize(Precio1,vectorize.args = c('k','Contador'))
       
-      #
+      # Data frame que consolida el escenario, el precio del bono tasa variable en cada periodo, el periodo de venta y el precio final del bono tasa variable con redención anticipada: 
       data.frame <- data.frame %>% mutate(k=1:nrow(data.frame)) %>% 
         mutate(PRECIO1=V_Precio1(k,Periodo_Venta),
                PrecioInicial=t(as.matrix(BONOS.TV.RESULTADOS[which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])[1],
                                                              9:ncol(BONOS.TV.RESULTADOS)]))) %>%
         mutate(PRECIOFINAL=ifelse(is.na(PRECIO1),PrecioInicial,PRECIO1))
        
-      #
+      # Se modifica el precio de los bonos tasa variable con redención anticipada en el data frame de resultados:
       BONOS.TV.RESULTADOS[which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']),
                           9:ncol(BONOS.TV.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
                                                             each=length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']))),byrow = F,nrow = length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])))   
   }
 }
 
-#
+# Se aplica la función de rendención a los bonos tasa variable con posibilidad de redención anticipada: 
 for(j in 1:nrow(RESUMEN.TV)){
   Redencion_TV(RESUMEN.TV[j,])
 }
