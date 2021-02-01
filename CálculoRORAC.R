@@ -83,7 +83,7 @@ options(scipen=999, digits = 8)
 
 
 # Mes a Valorar:
-mes <- 3 
+mes <- 3
 
 # Año a valorar:
 anno <- 2020 
@@ -1675,7 +1675,7 @@ Portafolio.total <- rbind(BONOS.TF.RESULTADOS, BONOS.TV.RESULTADOS, ACCIONES.RES
 Port.Optim <- function(X){
 
   # se define el portafolio total:
-  Titulos.optimo <- Portafolio.total
+  Titulos.optim <- Portafolio.total
   
   # Se multiplican los valores faciales:
   Titulos.optim <- cbind(Titulos.optim[,1:8], 
@@ -1737,7 +1737,7 @@ Port.Optim <- function(X){
                       Titulos.optim$COD_MOD_INV))/val.portafolio.fut
   Modal.prop1 <- sum(0.1 < Modal.tit[,c("DI","P2","E1")])
   Modal.prop2 <- sum(0.25 < Modal.tit[,c("P1")])
-  if(0<(Modal.prop1+Modal.porp2)){
+  if(0<(Modal.prop1+Modal.prop2)){
     RORAC.G <- RORAC.G+(Modal.prop1+Modal.prop2)/cant.simu
   }
   
@@ -1785,7 +1785,7 @@ val.portafolio.fut.r <- colSums(Titulos.optim.r[,-(1:8)])
 
 # Por sector:
 Sector.tit.r <- Titulos.optim.r %>% filter(COD_SEC == 1)
-Sector.prop.r <- 1-sum(0.8<colSums(Sector.tit[,-(1:8)])/val.portafolio.fut.r)/cant.simu
+Sector.prop.r <- 1-sum(0.8<colSums(Sector.tit.r[,-(1:8)])/val.portafolio.fut.r)/cant.simu
 
 # Por emisor:
 Emisor.tit.r <- t(rowsum(as.matrix(Titulos.optim.r[,-(1:8)]), 
@@ -1802,7 +1802,7 @@ Extr.prop.r <- 1-sum(0.25<(colSums(Extr.tit.r[,-(1:8)])/val.portafolio.fut.r))/c
 
 # Por modalidad de inversión:
 Modal.tit.r <- t(rowsum(as.matrix(Titulos.optim.r[,-(1:8)]), 
-                      Titulos.optim$COD_MOD_INV))/val.portafolio.fut.r
+                      Titulos.optim.r$COD_MOD_INV))/val.portafolio.fut.r
 Modal.prop1.r <- 1-sum(0.1 < Modal.tit.r[,c("DI","P2","E1")])/(cant.simu*3)
 Modal.prop2.r <- 1-sum(0.25 < Modal.tit.r[,c("P1")])/cant.simu
 
@@ -2002,7 +2002,7 @@ graf.rorac <- ggplot(Resultados.rorac %>%
   geom_text(data = Resultados.rorac %>%
               filter(Entidad %in% c("Óptimo")), 
             aes(x = 0, y=RORAC,label = Entidad), color = "steelblue",
-            nudge_x = 0.19, nudge_y = 0.9) +
+            nudge_x = 0.01, nudge_y = 0.9) +
   xlim(0,0.2) +
   theme_bw() +
   ylim(as.numeric(min(Resultados.rorac$RORAC))*(1-0.5),
@@ -2027,15 +2027,15 @@ theme(axis.text.x=element_blank(),
   ylab("Rendimiento (%)") +
   xlab("Riesgo") +
   geom_text(data = Resultados.rorac %>% filter(Entidad == "Benchmark"),
-            aes(x = CVaR, y=RORAC,label = Entidad),
-            color = "red", nudge_y = 4) +
+            aes(x = CVaR, y=Rendimiento,label = Entidad),
+            color = "red", nudge_y = 6) +
   geom_point(data = Resultados.rorac %>% filter(Entidad == "Benchmark"),
-            aes(x = CVaR, y=RORAC)) +
+            aes(x = CVaR, y=Rendimiento)) +
   geom_text(data = Resultados.rorac %>% filter(Entidad == "Óptimo"),
-            aes(x = CVaR, y=RORAC,label = Entidad),
-            color = "steelblue", nudge_y = 4) +
+            aes(x = CVaR, y=Rendimiento,label = Entidad),
+            color = "steelblue", nudge_y = 6) +
   geom_point(data = Resultados.rorac %>% filter(Entidad == "Óptimo"),
-             aes(x = CVaR, y=RORAC))
+             aes(x = CVaR, y=Rendimiento))
 graf.efi
 
 
