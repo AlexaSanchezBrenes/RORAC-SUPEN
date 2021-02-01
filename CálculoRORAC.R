@@ -1245,7 +1245,7 @@ for(j in 1:nrow(RESUMEN.TF)){
 }
 
 
-#------------------ Valoración de Bonos Tasa Variable --------------------
+#--------------- Ajuste para Redención Anticipada Tasa Variable ------------------
 
 
 # Se agrega la probabilidad de sobrevivencia (no caer en deafult) al data frame de los bonos tasa variable con características únicas:
@@ -1314,10 +1314,6 @@ BONOS.TV.RESULTADOS <- BONOS.TV[,c('COD_ISIN',
   mutate(VAL_FAC = sum(VAL_FAC)) %>% ungroup() %>% 
   unique() %>% 
   right_join(BONOS.TV.PRECIOS, by = "COD_ISIN")
-
-
-#--------------- Ajuste para Redención Anticipada Tasa Variable ------------------
-
 
 # Bonos tasa variable con características únicas para calcular su redención:
 RESUMEN.TV <- BONOS.TV %>% distinct(FEC_DAT,FEC_VEN,COD_ISIN,MAR_FIJ,
