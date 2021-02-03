@@ -22,7 +22,7 @@ library(xts)
 library(tictoc)
 library(stringi)
 library(dplyr)
-library("tools")
+library(tools)
 library(stringr)
 library(GA)
 library(lubridate)
@@ -381,27 +381,6 @@ FuncionObjetivo.SA.Pon <- function(X){
   ErrorTotal <- ifelse((0 < B0) & (0==TasaNegativa), ErrorTotal, ErrorTotal+1e4)
   return(ErrorTotal)
 }
-
-#---------------------------------------- Pruebas de tiempo por función:
-
-# Redefinimos puntos iniciales de prueba:
-X <- c(0.1109,	5,	0.05695203)
-Y <- c(8.882375e-02, -2.275652e-03, -4.067703e-05,  3.147415e+01,  8.833481e+01)
-
-
-# Prueba:
-tic()
-FuncionObjetivo.NS.Max(X)
-toc()
-tic()
-FuncionObjetivo.NS.Pon(X)
-toc()
-tic()
-FuncionObjetivo.SA.Max(Y)
-toc()
-tic()
-FuncionObjetivo.SA.Pon(Y)
-toc()
 
 
 #---------------------------------------- Prueba para Optimizadores:
