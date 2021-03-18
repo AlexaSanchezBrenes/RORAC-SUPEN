@@ -25,7 +25,7 @@ options(stringsAsFactors = FALSE)
 # Historial de Tasas TRI de Costa Rica: 
 TRI_colones <- read_excel("TRI colones.xlsx",col_types = c("date", "numeric"))
 TRI_colones <- TRI_colones[seq(from = 1, to = nrow(TRI_colones), by = 7),]
-TRI_colones<-TRI_colones %>% mutate(Delta = log((1+`1 semana`/100/52))*52/12)
+TRI_colones <- TRI_colones %>% mutate(Delta = log((1+`1 semana`/100/52))*52/12)
 
 #---------------------------------------- Parámetros Generales:
 
@@ -36,7 +36,7 @@ cant.simu <- 10000
 TRI.corta <- log(1+1.25/100/52)*52/12
 
 # Se calcula la varianza mensual:
-varianza.mensual<-4*var(TRI_colones$Delta)
+varianza.mensual <- 4*var(TRI_colones$Delta)
 
 # Generamos las proporciones de subida y bajada iniciales:
 u2 <- 1+sqrt(varianza.mensual)
