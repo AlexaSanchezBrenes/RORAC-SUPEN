@@ -378,7 +378,7 @@ FuncionObjetivo.SA.Pon <- function(X){
   ErrorTotal <- sum(DiferenciasPrecio.Pon$Error)
   
   # Penalización por no estar en restricciones:
-  ErrorTotal <- ifelse((0 < B0) & (0==TasaNegativa), ErrorTotal, ErrorTotal+1e4)
+  ErrorTotal <- ifelse((0 < B0) & (0==TasaNegativa), ErrorTotal, ErrorTotal+10000)
   return(ErrorTotal)
 }
 
