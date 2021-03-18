@@ -1,59 +1,59 @@
-#                     Consultoría RORAC-SUPEN 
-#     Cálculo de distribución de rendimientos del portafolio de bonos 
+#                     Consultoria RORAC-SUPEN 
+#     Calculo de distribucion de rendimientos del portafolio de bonos 
 
 # Autores:
-# Alexa Sánchez
+# Alexa Sanchez
 # Isaac Z. Arias
 
-# En este script calculamos los rendimientos del portafolio de bonos según 
-# la entidad que posea los títulos a un periodo de 12 meses (parámetro que
-# se puede cambiar). El código se distribuye de la siguiente manera:
+# En este script calculamos los rendimientos del portafolio de bonos segun 
+# la entidad que posea los titulos a un periodo de 12 meses (parametro que
+# se puede cambiar). El codigo se distribuye de la siguiente manera:
 #
-#             1. Módulo General
+#             1. Modulo General
 #                    - Paquetes Utilizados  
-#                    - Parámetros Generales
+#                    - Parametros Generales
 #                    - Carga de Datos Generales
-#                    - Manipulación Y Limpieza de Datos Generales
-#             2. Módulo de Bonos
-#                    - Parámetros de Datos Bonos
-#                    - Carga y Manipulación de Datos para Bonos
+#                    - Manipulacion Y Limpieza de Datos Generales
+#             2. Modulo de Bonos
+#                    - Parametros de Datos Bonos
+#                    - Carga y Manipulacion de Datos para Bonos
 #                    - Funciones del Modelo de Bonos
-#                    - Cálculo de Curva Par
+#                    - Calculo de Curva Par
 #                         • Tasa Fija
 #                         • Tasa Variable
-#                    - Estimación del Riesgo de Crédito
+#                    - Estimacion del Riesgo de Credito
 #                         • Tasa Fija
 #                         • Tasa Variable
-#                    - Cálculo del Precio Teórico
+#                    - Calculo del Precio Teorico
 #                         • Tasa Fija
 #                         • Tasa Variable
-#                    - Simulación Ho-Lee
+#                    - Simulacion Ho-Lee
 #                         • Carga de Datos Ho-Lee CRC
-#                         • Parámetros Ho-Lee CRC
+#                         • Parametros Ho-Lee CRC
 #                         • Funciones Ho-Lee CRC
 #                         • Carga de Datos Ho-Lee USD
-#                         • Parámetros Ho-Lee USD
+#                         • Parametros Ho-Lee USD
 #                         • Funciones Ho-Lee USD
-#                    - Valoración de Bonos
-#                         • Ajuste para Redención Anticipada Tasa Fija
-#                         • Ajuste para Redención Anticipada Tasa Variable
-#             3. Módulo de Acciones
-#                    - Manipulación e Imputación de Datos
-#                    - Simulación de Acciones
-#             4. Cálculo RORAC
-#                    - Optimización del Portafolio de Mercado
-#                    - Cálculo del Benchmark de Mercado
-#                    - Portafolio Individual por Régimen
-#                         • Parámetros de Almacenamiento 
-#                         • Cálculo de RORACs
-#                    - Visualización
+#                    - Valoracion de Bonos
+#                         • Ajuste para Redencion Anticipada Tasa Fija
+#                         • Ajuste para Redencion Anticipada Tasa Variable
+#             3. Modulo de Acciones
+#                    - Manipulacion e Imputacion de Datos
+#                    - Simulacion de Acciones
+#             4. Calculo RORAC
+#                    - Optimizacion del Portafolio de Mercado
+#                    - Calculo del Benchmark de Mercado
+#                    - Portafolio Individual por Regimen
+#                         • Parametros de Almacenamiento 
+#                         • Calculo de RORACs
+#                    - Visualizacion
 #
 #############################################################################
 
 
                        #################################
                        ###                           ###
-                       ###    1. Módulo General      ###
+                       ###    1. Modulo General      ###
                        ###                           ###
                        #################################
 
@@ -79,13 +79,13 @@ options(stringsAsFactors = FALSE)
 options(scipen=999, digits = 8)
 
 
-############################ Parámetros Generales ###########################
+############################ Parametros Generales ###########################
 
 
 # Mes a Valorar:
 mes <- 3
 
-# Año a valorar:
+# Anno a valorar:
 anno <- 2020 
 
 # Cantidad de periodos en meses al cual se va a calcular el RORAC
@@ -94,11 +94,11 @@ Periodo <- 12
 # Tasa del primer vencimiento TRI en el primer mes observado (marzo):
 TRI.corta <- log(1+1.25/100/52)*52/12
 
-# Fijamos los parámetros de la curva Nelson Siegel o Svensson encontrada:
+# Fijamos los parametros de la curva Nelson Siegel o Svensson encontrada:
 Par.NS <- c(8.337060e-03, TRI.corta-8.337060e-03, -3.330267e-12, 1.811465e+01)
 Par.SA <- c(6.253579e-03,-0.005212038,-2.791880e-05,6.6101177e-06,1.357261e+01,4.806624e+01)
 
-# Parámetro que indica si el modelo utilizado es el Svensson (si es Nelson Siegel fijarlo como 0)
+# Parametro que indica si el modelo utilizado es el Svensson (si es Nelson Siegel fijarlo como 0)
 Svensson <- 1 
 
 # Cantidad de simulaciones:
@@ -107,23 +107,23 @@ cant.simu <- 10000
 # Tipo de cambio de compra al cierre del mes a valorar:
 TC <- 579.5 
 
-# Se define el nivel de confianza:
-confianza <- 1/100
+# Se define el nivel de significancia:
+significancia <- 1/100
 
-# Límite de rendimiento de acciones permitido:
+# Limite de rendimiento de acciones permitido:
 lim.rend <- 700
 
-# Intensidad de Optimización de Portafolio:
-Int.Port <- 2
+# Intensidad de Optimizacion de Portafolio:
+Int.Port <- 7
 
 ############################## Carga de Datos ################################
 
 
-# Dirrección de los datos:
+# Dirreccion de los datos:
 Dir <- "C:/Users/EQUIPO/Desktop/Estudios/RORAC-SUPEN/Títulos"
 
 # Funcion para leer los datos:
-#Input: archivos .txt que contienen la información de las transacciones
+# Input: archivos .txt que contienen la informacion de las transacciones
 lee.datos <<- function(archivo){
   
   tbl<- as.data.frame(unclass(read.table(archivo, 
@@ -135,14 +135,14 @@ lee.datos <<- function(archivo){
 
 # Funcion para obtener los datos de las carpetas
 
-# Input: dirección de la carpeta donde se encuentran los archivos con las 
+# Input: direccion de la carpeta donde se encuentran los archivos con las 
 # transacciones
 # Output: Lista con todas las transacciones
 lista.df<-function(path=Dir){
   
   folder<-list.files(path,full.name = TRUE )
   n<-length(folder)
-  #n<-14
+  
   lista.df<-list()
   
   for(i in 1:n){
@@ -160,10 +160,10 @@ tipo.Cambio.hist <- read_excel("Tipo de Cambio.xlsx", col_names = TRUE,
   select(-`TIPO DE CAMBIO VENTA`)         
 
 
-################ Manipulación Y Limpieza de Datos Generales ##################
+################ Manipulacion Y Limpieza de Datos Generales ##################
 
 
-# Unificación de variables dado el cambio de la codificación realizada por supen
+# Unificacion de variables dado el cambio de la codificacion realizada por supen
 titulos.viejos <- tabla[1:13]
 titulos.nuevos <- tabla[14:26]
 titulos.viejos <- do.call("rbind", titulos.viejos)
@@ -191,7 +191,7 @@ titulos <- titulos %>% mutate(COD_MOD_INV =
 # Eliminamos recompras
 titulos <- titulos %>% filter(COD_MOD_INV != 'RE')
 
-# Filtramos los títulos que corresponden a bonos
+# Filtramos los titulos que corresponden a bonos
 BONOS <- titulos %>% 
   select(COD_ENT,FEC_DAT,COD_MOD_INV,COD_INS,VAL_FAC,MAR_FIJ,FEC_VEN,COD_ISIN,TAS_FAC,TIP_PER,COD_MON,VAL_MER,VEC_PRE_POR,VEC_PRE_MON,COD_EMI,ES_REDE,ADMIN,COD_SEC) %>%
   filter(!is.na(TIP_PER),!is.na(VAL_FAC),!is.na(FEC_VEN)) %>% mutate(PRECIO=VAL_MER/VAL_FAC)
@@ -213,7 +213,7 @@ ACCIONES <- ACCIONES %>% ungroup() %>%
   left_join(tipo.Cambio.hist, by = c("FEC_DAT" = "Fecha")) %>% 
   mutate(Precio = ifelse(COD_MON==2, (VAL_MER/`TIPO CAMBIO COMPRA`)/VAL_FAC, VAL_MER/VAL_FAC)) 
 
-# Función para calcular la diferencia de fechas en meses:
+# Funcion para calcular la diferencia de fechas en meses:
 Tau <- function(t, Te) {
   ed <- as.POSIXlt(Te)
   sd <- as.POSIXlt(t)
@@ -229,12 +229,12 @@ rm(tabla,titulos.viejos,titulos.nuevos,titulos)
 
                        #################################
                        ###                           ###
-                       ###   2. Módulo de Bonos      ###
+                       ###   2. Modulo de Bonos      ###
                        ###                           ###
                        #################################
 
 
-######################## Parámetros Del Modelo de Bonos ######################
+######################## Parametros Del Modelo de Bonos ######################
 
 
 # Fecha Inicial como objeto fecha:
@@ -246,7 +246,7 @@ Fecha.Final <- max(BONOS$FEC_VEN)
 # Distancia en Meses: 
 tiempo <- ceiling(Tau(Fecha.Inicial, Fecha.Final))
 
-# Curva de Espectativas de Inflación:
+# Curva de Espectativas de Inflacion:
 Inflacion <- rep(0.05, times=tiempo)
 Inflacion <- as.data.frame(cbind(0:(tiempo-1),Inflacion))
 colnames(Inflacion) <- c("Tau","Inflacion")
@@ -255,7 +255,7 @@ colnames(Inflacion) <- c("Tau","Inflacion")
 Curva.Espectativas <- data.frame(Tau = 0:(tiempo-1), Tasa = rep(0.05, times = tiempo))
 
 
-################## Carga y Manipulación Del Modelo de Bonos ##################
+################## Carga y Manipulacion Del Modelo de Bonos ##################
 
 
 # Curva Soberana del Tesoro de Estados Unidos
@@ -297,7 +297,7 @@ BONOS.TF <- BONOS.TF %>%
 ######################## Funciones Del Modelo de Bonos #######################
 
 
-# Función para interpolar linealmente las tasas:
+# Funcion para interpolar linealmente las tasas:
 inter.lin.tasas <- function(puntos){
   # Se calculan los precios mensuales interpolados:
   tasas <- approxfun(puntos$Vencimiento, puntos$Tasa)(0:tiempo)
@@ -305,7 +305,7 @@ inter.lin.tasas <- function(puntos){
   return(curva.meses)
 }
 
-# Función que genera el precio de la curva a un tiempo (Tao) dado:
+# Funcion que genera el precio de la curva a un tiempo (Tao) dado:
 Precio <- function(tao,col_dol){
   if(tao == 0){
     precio = 1
@@ -339,10 +339,10 @@ Precio <- function(tao,col_dol){
     return(precio)
   }}
 
-# Vectorización de la funcion del precio:
+# Vectorizacion de la funcion del precio:
 V_Precio <- Vectorize(Precio) 
 
-# Función para calcular el precio teórico de cada bono considerando su riesgo crediticio:
+# Funcion para calcular el precio teorico de cada bono considerando su riesgo crediticio:
 PRECIO.TEORICO.TF <- function(fila,mu){
   if(fila[,"COD_INS"] %in% c("tudes","TUDES")){
     # Creamos el Tau del ponderador:
@@ -377,18 +377,18 @@ PRECIO.TEORICO.TF <- function(fila,mu){
   return(Precio.Teorico)
 }
 
-# Función de interpolación para la curva de espectativas de inflación:
+# Funcion de interpolacion para la curva de espectativas de inflacion:
 Inflacion_Interp <- function(tau){
   return(approxfun(Inflacion$Tau,Inflacion$Inflacion)(tau))
 }
 
 
-########################## Cálculo de la Curva Par ###########################
+########################## Calculo de la Curva Par ###########################
 
 
 #------------------------------ Tasa Fija ------------------------------------
 
-# Función que calcula la tasa par para los bonos tasa fija:
+# Funcion que calcula la tasa par para los bonos tasa fija:
 TIR.TF <- function(fila){
     if(fila[,"COD_INS"] %in% c("tudes","TUDES")){
       # Creamos el Tau del ponderador:
@@ -417,7 +417,7 @@ TIR.TF <- function(fila){
         mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+TAS_FAC/100,TAS_FAC/100))
     }
     
-  # Esta función calcula el error de la tasa par:
+  # Esta funcion calcula el error de la tasa par:
     TIR <- function(tasa){
       tabla <- tabla %>% mutate(desc=(1+tasa)^-tau) %>%
         mutate(Pago_desc=Pago*desc)
@@ -429,43 +429,43 @@ TIR.TF <- function(fila){
     
 }
 
-# Se seleccionan las observaciones con características únicas de los bonos tasa fija:
+# Se seleccionan las observaciones con caracteristicas unicas de los bonos tasa fija:
 BONOS.TF.RESUMEN <- BONOS.TF %>%
   distinct(COD_ISIN,TIP_PER,FEC_DAT,FEC_VEN,TAS_FAC,COD_INS)
 
-# Se encuentra la tasa par para cada bono tasa fija con características únicas:
+# Se encuentra la tasa par para cada bono tasa fija con caracteristicas unicas:
 BONOS.TF2 <- lapply(split(BONOS.TF.RESUMEN,seq(nrow(BONOS.TF.RESUMEN))),TIR.TF)
 
-# Se convierte a data frame la base que consolida las otras características de los bonos tasa fija con su respectiva tasa par:
+# Se convierte a data frame la base que consolida las otras caracteristicas de los bonos tasa fija con su respectiva tasa par:
 BONOS.TF2 <- data.frame(matrix(unlist(BONOS.TF2), nrow=length(BONOS.TF2), byrow=T))
 colnames(BONOS.TF2) <- c(colnames(BONOS.TF.RESUMEN),'TIR')
 
-# Se convierten en variables numéricas la tasa facial, la periodicidad y la tasa par:
+# Se convierten en variables numericas la tasa facial, la periodicidad y la tasa par:
 BONOS.TF2 <- BONOS.TF2 %>% 
   mutate(TAS_FAC=as.numeric(TAS_FAC),TIP_PER=as.numeric(TIP_PER),TIR=as.numeric(TIR))
 
-# Se agrega la tasa par de cada bono con características únicas a la base que contiene todos los bonos tasa fija:
+# Se agrega la tasa par de cada bono con caracteristicas unicas a la base que contiene todos los bonos tasa fija:
 BONOS.TF <- left_join(BONOS.TF,BONOS.TF2, by = c("FEC_DAT", "COD_INS", "FEC_VEN", "COD_ISIN", "TAS_FAC", "TIP_PER"))
 
 
 #----------------------------- Tasa Variable ---------------------------------
 
 
-# Se agrega la curva de espectativas de tasa de interés:
+# Se agrega la curva de espectativas de tasa de interes:
 curva.tasas <- list(Tasa = Curva.Espectativas)
 curva.tasas <- rep(curva.tasas, times = length(unique(BONOS.TV$COD_INS)))
 names(curva.tasas) <- unique(BONOS.TV$COD_INS)
 
-# Función que devuelve la tasa de interés a un plazo tau correspondiente a un nemotécnico específico:
+# Funcion que devuelve la tasa de interes a un plazo tau correspondiente a un nemotecnico especifico:
 Cupones.variables <- function(tau,nemotec){
   tasa <- approxfun(curva.tasas[[nemotec]]$Tau,curva.tasas[[nemotec]]$Tasa)(tau)
   return(tasa)
 }
 
-# Función vectorizada que devuelve la tasa de interés a un plazo tau correspondiente a un nemotécnico específico:
+# Funcion vectorizada que devuelve la tasa de interes a un plazo tau correspondiente a un nemotecnico especifico:
 V_Cupones.variables <- Vectorize(Cupones.variables)
 
-# Función que calcula la tasa par para los bonos tasa variable:
+# Funcion que calcula la tasa par para los bonos tasa variable:
 TIR.TV <- function(fila){
   # Creamos el Tau del ponderador:
   if(fila[,"TIP_PER"]==0){
@@ -479,7 +479,7 @@ TIR.TV <- function(fila){
       mutate(tau = Tau(FEC_DAT, Fecha.Pago)) %>% mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100,(V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100))
   }
   
-  # Esta función calcula el error de la tasa par:
+  # Esta funcion calcula el error de la tasa par:
   TIR<-function(tasa){
     tabla<-tabla %>% 
       mutate(desc=(1+tasa)^-tau) %>% mutate(Pago_desc=Pago*desc)
@@ -490,31 +490,31 @@ TIR.TV <- function(fila){
   return(cbind(fila,TIR=Opt$x))
 }
 
-# Se seleccionan las observaciones con características únicas de los bonos tasa variable:
+# Se seleccionan las observaciones con caracteristicas unicas de los bonos tasa variable:
 BONOS.TV.RESUMEN <- BONOS.TV %>% 
   distinct(COD_ISIN,FEC_DAT,FEC_VEN,COD_INS,TIP_PER,MAR_FIJ)
 
-# Se encuentra la tasa par para cada bono tasa variable con características únicas:
+# Se encuentra la tasa par para cada bono tasa variable con caracteristicas unicas:
 BONOS.TV2 <- lapply(split(BONOS.TV.RESUMEN, seq(nrow(BONOS.TV.RESUMEN))),TIR.TV)
 
-# # Se convierte a data frame la base que consolida las otras características de los bonos tasa variable con su respectiva tasa par:
+# # Se convierte a data frame la base que consolida las otras caracteristicas de los bonos tasa variable con su respectiva tasa par:
 BONOS.TV2 <- data.frame(matrix(unlist(BONOS.TV2), nrow = length(BONOS.TV2), byrow = T))
 colnames(BONOS.TV2) <- c(colnames(BONOS.TV.RESUMEN), 'TIR')
 
-# Se convierten en variables numéricas la periodicidad, el margen y la tasa par:
+# Se convierten en variables numericas la periodicidad, el margen y la tasa par:
 BONOS.TV2 <- BONOS.TV2 %>% 
   mutate(TIP_PER = as.numeric(TIP_PER), MAR_FIJ = as.numeric(MAR_FIJ), TIR = as.numeric(TIR))
 
-# Se agrega la tasa par de cada bono con características únicas a la base que contiene todos los bonos tasa variable:
+# Se agrega la tasa par de cada bono con caracteristicas unicas a la base que contiene todos los bonos tasa variable:
 BONOS.TV <- left_join(BONOS.TV,BONOS.TV2, by = c("FEC_DAT", "COD_INS", "MAR_FIJ", "FEC_VEN", "COD_ISIN", "TIP_PER"))
 
 
-##################### Estimación del Riesgo de Crédito #######################
+##################### Estimacion del Riesgo de Credito #######################
 
 
 #------------------------------ Tasa Fija ------------------------------------
 
-# Función que debe ser minimizada para estimar el parámetro mu:
+# Funcion que debe ser minimizada para estimar el parametro mu:
 Optimizacion.F <- function(fila){
   FuncionObjetivo <- function(mu){  ## Agrupar por cod isin
     return(abs(PRECIO.TEORICO.TF(fila,mu)-fila[,"PRECIO.OBS"]))
@@ -527,28 +527,28 @@ Optimizacion.F <- function(fila){
   return(cbind(fila,Parametro=Optimizacion$x,Error=Optimizacion$fvec))
 }
 
-# Se pondera el precio observado de cada bono tasa fija en función de su valor facial:
+# Se pondera el precio observado de cada bono tasa fija en funcion de su valor facial:
 PRECIOS.OBS <- BONOS.TF %>% group_by(COD_ISIN) %>%
   mutate(PONDERADOR=VAL_FAC/sum(VAL_FAC)) %>% 
   mutate(PRECIO.POND=PONDERADOR*PRECIO) %>% 
   summarise(PRECIO.OBS=sum(PRECIO.POND), .groups = "keep")
 
-# Se seleccionan las observaciones con características únicas de los bonos tasa fija y se adiciona el precio ponderado:
+# Se seleccionan las observaciones con caracteristicas unicas de los bonos tasa fija y se adiciona el precio ponderado:
 BONOS.TF.RESUMEN<- BONOS.TF %>%
   distinct(COD_ISIN,TIP_PER,FEC_DAT,FEC_VEN,TAS_FAC,COD_MON,COD_EMI,COD_INS)
 BONOS.TF.RESUMEN <- left_join(BONOS.TF.RESUMEN,PRECIOS.OBS, by = "COD_ISIN")
 
-# Se aplica la función de optimización para determinar el parámetro mu óptimo de cada bono tasa fija con características únicas:
+# Se aplica la funcion de optimizacion para determinar el parametro mu optimo de cada bono tasa fija con caracteristicas unicas:
 Optimizacion.TF <- lapply(split(BONOS.TF.RESUMEN, seq(nrow(BONOS.TF.RESUMEN))), Optimizacion.F)
 
-# Se convierte a data frame la base que consolida las otras características de los bonos tasa fija con su parámetro mu óptimo y el error de optimización:
+# Se convierte a data frame la base que consolida las otras caracteristicas de los bonos tasa fija con su parametro mu optimo y el error de optimizacion:
 Optimizacion.TF <- data.frame(matrix(unlist(Optimizacion.TF), 
                                      nrow = length(Optimizacion.TF), byrow = T))
 colnames(Optimizacion.TF) <- c(colnames(BONOS.TF.RESUMEN),"Parametro",
                                "Error")
 Optimizacion.TF$Parametro <- as.numeric(Optimizacion.TF$Parametro)
 
-# Se agrega el parámetro mu óptimo de cada bono con características únicas a la base que contiene todos los bonos tasa fija:
+# Se agrega el parametro mu optimo de cada bono con caracteristicas unicas a la base que contiene todos los bonos tasa fija:
 BONOS.TF <- left_join(BONOS.TF,Optimizacion.TF[,c("COD_ISIN","Parametro")],
                       by = "COD_ISIN")
 
@@ -556,7 +556,7 @@ BONOS.TF <- left_join(BONOS.TF,Optimizacion.TF[,c("COD_ISIN","Parametro")],
 #----------------------------- Tasa Variable ---------------------------------
 
 
-# Función para calcular el precio teórico de cada bono considerando su riesgo crediticio:
+# Funcion para calcular el precio teorico de cada bono considerando su riesgo crediticio:
 PRECIO.TEORICO.TV <- function(fila,mu){
   
   # Creamos el Tau del ponderador:
@@ -583,7 +583,7 @@ PRECIO.TEORICO.TV <- function(fila,mu){
   return(Precio.Teorico)
 }
 
-# Función que debe ser minimizada para estimar el parámetro mu:
+# Funcion que debe ser minimizada para estimar el parametro mu:
 Optimizacion.V <- function(fila){
   
   FuncionObjetivo<- function(mu){
@@ -600,7 +600,7 @@ Optimizacion.V <- function(fila){
                Error = Optimizacion$fvec))
 }
 
-# Se pondera el precio observado de cada bono tasa variable en función de su valor facial:
+# Se pondera el precio observado de cada bono tasa variable en funcion de su valor facial:
 PRECIOS.OBS <- BONOS.TV %>% 
   group_by(COD_ISIN) %>% 
   mutate(PONDERADOR = VAL_FAC/sum(VAL_FAC)) %>% 
@@ -608,32 +608,32 @@ PRECIOS.OBS <- BONOS.TV %>%
   summarise(PRECIO.OBS = sum(PRECIO.POND), 
             .groups = "keep")
 
-# Se seleccionan las observaciones con características únicas de los bonos tasa variable y se adiciona el precio ponderado:
+# Se seleccionan las observaciones con caracteristicas unicas de los bonos tasa variable y se adiciona el precio ponderado:
 BONOS.TV.RESUMEN<- BONOS.TV %>% 
   distinct(COD_ISIN, TIP_PER, FEC_DAT, FEC_VEN, COD_MON, MAR_FIJ, COD_INS, COD_EMI)
 BONOS.TV.RESUMEN <- left_join(BONOS.TV.RESUMEN, PRECIOS.OBS, by = "COD_ISIN")
 
-# Se aplica la función de optimización para determinar el parámetro mu óptimo de cada bono tasa variable con características únicas:
+# Se aplica la funcion de optimizacion para determinar el parametro mu optimo de cada bono tasa variable con caracteristicas unicas:
 Optimizacion.TV <-lapply(split(BONOS.TV.RESUMEN, seq(nrow(BONOS.TV.RESUMEN))), Optimizacion.V)
 
-# Se convierte a data frame la base que consolida las otras características de los bonos tasa variable con su parámetro mu óptimo y el error de optimización:
+# Se convierte a data frame la base que consolida las otras caracteristicas de los bonos tasa variable con su parametro mu optimo y el error de optimizacion:
 Optimizacion.TV <- data.frame(matrix(unlist(Optimizacion.TV),
                                      nrow = length(Optimizacion.TV), byrow = T))
 colnames(Optimizacion.TV) <- c(colnames(BONOS.TV.RESUMEN),
                                "Parametro", "Error")
 
-# Se agrega el parámetro mu óptimo de cada bono con características únicas a la base que contiene todos los bonos tasa variable:
+# Se agrega el parametro mu optimo de cada bono con caracteristicas unicas a la base que contiene todos los bonos tasa variable:
 BONOS.TV <- left_join(BONOS.TV, Optimizacion.TV[, c("COD_ISIN", "Parametro")],
                       by = "COD_ISIN")
 BONOS.TV <- BONOS.TV %>% mutate(Parametro = as.numeric(Parametro))
 
 
-######################## Cálculo del Precio Teórico #########################
+######################## Calculo del Precio Teorico #########################
 
 
 #------------------------------ Tasa Fija ------------------------------------
 
-# Función que calcula el precio teórico de un bono tasa fija incluyendo su riesgo crediticio:
+# Funcion que calcula el precio teorico de un bono tasa fija incluyendo su riesgo crediticio:
 PRECIO.TEORICO.TF2 <- function(fila){
   
   # Creamos el Tau del ponderador:
@@ -661,24 +661,24 @@ PRECIO.TEORICO.TF2 <- function(fila){
   return(cbind(fila, Precio.Teorico))
 }
 
-# Se seleccionan las observaciones con características únicas de los bonos tasa fija:
+# Se seleccionan las observaciones con caracteristicas unicas de los bonos tasa fija:
 BONOS.TF.RESUMEN <- BONOS.TF %>%
   distinct(COD_ISIN,TIP_PER,FEC_DAT,FEC_VEN,TAS_FAC,COD_MON,COD_EMI,Parametro,ES_REDE)
 
-# Se calcula el precio teórico de cada bono tasa fija con características únicas: 
+# Se calcula el precio teorico de cada bono tasa fija con caracteristicas unicas: 
 PRECIO.TF <- lapply(split(BONOS.TF.RESUMEN, seq(nrow(BONOS.TF.RESUMEN))),
                     PRECIO.TEORICO.TF2)
 
-# Se convierte a data frame la base que consolida las otras características de los bonos tasa fija con su precio teórico:
+# Se convierte a data frame la base que consolida las otras caracteristicas de los bonos tasa fija con su precio teorico:
 PRECIO.TF <- data.frame(matrix(unlist(PRECIO.TF), nrow=length(PRECIO.TF), 
                                byrow = T))
 colnames(PRECIO.TF) <- c(colnames(BONOS.TF.RESUMEN), "PRECIO_TEORICO_0")
 
-# Se agrega el precio teórico de cada bono con características únicas a la base que contiene todos los bonos tasa fija:
+# Se agrega el precio teorico de cada bono con caracteristicas unicas a la base que contiene todos los bonos tasa fija:
 BONOS.TF <- left_join(BONOS.TF,PRECIO.TF[,c('COD_ISIN','PRECIO_TEORICO_0')],
                       by = "COD_ISIN")
 
-# Se convierte a colones el precio teórico en el caso de los bonos tasa fija en dólares:
+# Se convierte a colones el precio teorico en el caso de los bonos tasa fija en dolares:
 BONOS.TF <- BONOS.TF %>% mutate(FACTOR_TC = ifelse(COD_MON == 1, 1, TC)) %>% 
   mutate(PRECIO_TEORICO_0 = as.numeric(PRECIO_TEORICO_0)) %>%
  mutate(PRECIO_TEORICO_0 = PRECIO_TEORICO_0*FACTOR_TC)
@@ -687,7 +687,7 @@ BONOS.TF <- BONOS.TF %>% mutate(FACTOR_TC = ifelse(COD_MON == 1, 1, TC)) %>%
 #----------------------------- Tasa Variable ---------------------------------
 
 
-# Función que calcula el precio teórico de un bono tasa variable incluyendo su riesgo crediticio:
+# Funcion que calcula el precio teorico de un bono tasa variable incluyendo su riesgo crediticio:
 PRECIO.TEORICO.TV2 <- function(fila){
   
   # Creamos el Tau del ponderador:
@@ -712,32 +712,32 @@ PRECIO.TEORICO.TV2 <- function(fila){
   return(cbind(fila,Precio.Teorico))
 }
 
-# Se seleccionan las observaciones con características únicas de los bonos tasa variable:
+# Se seleccionan las observaciones con caracteristicas unicas de los bonos tasa variable:
 BONOS.TV.RESUMEN <- BONOS.TV %>%
   distinct(COD_ISIN,TIP_PER,FEC_DAT,FEC_VEN,TAS_FAC,COD_MON,
            COD_EMI,COD_INS,MAR_FIJ, Parametro,ES_REDE) %>%
   mutate(Parametro = as.numeric(Parametro))
 
-# Se calcula el precio teórico de cada bono tasa variable con características únicas: 
+# Se calcula el precio teorico de cada bono tasa variable con caracteristicas unicas: 
 PRECIO.TV <-lapply(split(BONOS.TV.RESUMEN,seq(nrow(BONOS.TV.RESUMEN))),
                    PRECIO.TEORICO.TV2)
 
-# Se convierte a data frame la base que consolida las otras características de los bonos tasa variable con su precio teórico:
+# Se convierte a data frame la base que consolida las otras caracteristicas de los bonos tasa variable con su precio teorico:
 PRECIO.TV <- data.frame(matrix(unlist(PRECIO.TV), nrow=length(PRECIO.TV), 
                                byrow=T))
 colnames(PRECIO.TV)<-c(colnames(BONOS.TV.RESUMEN),"PRECIO_TEORICO_0") 
 
-# Se agrega el precio teórico de cada bono con características únicas a la base que contiene todos los bonos tasa variable:
+# Se agrega el precio teorico de cada bono con caracteristicas unicas a la base que contiene todos los bonos tasa variable:
 BONOS.TV <- left_join(BONOS.TV,PRECIO.TV[,c('COD_ISIN','PRECIO_TEORICO_0')], 
                       by = "COD_ISIN")
 
-# Se convierte a colones el precio teórico en el caso de los bonos tasa variable en dólares:
+# Se convierte a colones el precio teorico en el caso de los bonos tasa variable en dolares:
 BONOS.TV <- BONOS.TV %>% mutate(FACTOR_TC=ifelse(COD_MON==1,1,TC)) %>%
   mutate(PRECIO_TEORICO_0=as.numeric(PRECIO_TEORICO_0)) %>%
   mutate(PRECIO_TEORICO_0=PRECIO_TEORICO_0*FACTOR_TC)
 
 
-############################# Simulación Ho-Lee ##############################
+############################# Simulacion Ho-Lee ##############################
 
 
 #------------------------ Carga de Datos Ho-Lee CRC --------------------------
@@ -749,7 +749,7 @@ TRI_colones <- TRI_colones[seq(from = 1, to = nrow(TRI_colones), by = 7),]
 TRI_colones<-TRI_colones %>% mutate(Delta = log((1+`1 semana`/100/52))*52/12)
 
 
-#------------------------ Parámetros Ho-Lee CRC ------------------------------
+#------------------------ Parametros Ho-Lee CRC ------------------------------
 
 
 # Se calcula la varianza mensual:
@@ -759,14 +759,14 @@ varianza.mensual <- 4*var(TRI_colones$Delta)
 u2.col <- 1+sqrt(varianza.mensual)
 d2.col <- 1-sqrt(varianza.mensual)
 
-# Fijamos el parámetro fijo k del modelo:
+# Fijamos el parametro fijo k del modelo:
 k.col <- d2.col/u2.col
 
 
 #------------------------- Funciones Ho-Lee CRC ------------------------------
 
 
-# Función que genera el precio de la curva a un tiempo (Tao) dado:
+# Funcion que genera el precio de la curva a un tiempo (Tao) dado:
 Precio_col <- function(tao){
   if(tao == 0){
     precio = 1
@@ -797,25 +797,25 @@ Precio_col <- function(tao){
   return(precio)
 }
 
-# Función del parámetro de bajada:
+# Funcion del parametro de bajada:
 d.t = function(t, p, k.col){ 
   (k.col^(t-1))/((1 - p)*(k.col^(t-1)) + p)
 } 
 
-# Función para encontrar la tasa corta dado un tiempo (Tao):
+# Funcion para encontrar la tasa corta dado un tiempo (Tao):
 Tasa.Corta.t = function(tao, cant_sub, p){
   
   # Se obtiene el precio de acuerdo a las curvas Nelson-Siegel-Svensson
   P_0_t = Precio_col(tao)
   P_0_T = Precio_col(tao + 1)
   
-  # Se obtiene la tasa corta mediante la fórmula.
+  # Se obtiene la tasa corta mediante la formula.
   r_t = log(P_0_t/P_0_T) - log(d.t(tao + 1, p, k.col)) + cant_sub*log(k.col)
   
   return(r_t)  
 }
 
-# Función que realiza la simulación de una trayectoria aleatoria dado un periodo (tiempo):
+# Funcion que realiza la simulacion de una trayectoria aleatoria dado un periodo (tiempo):
 Arbol.HL.desc <- function(tiempo){   
   
   # Crea la probabilidad:
@@ -827,7 +827,7 @@ Arbol.HL.desc <- function(tiempo){
   # Obtiene la cantidad de subidas acumuladas:
   vect_cant_sub = cumsum(trayectoria)
   
-  # Aplica la función de la tasa corta para cada instante;
+  # Aplica la funcion de la tasa corta para cada instante;
   vect_r_t = Vectorize(Tasa.Corta.t)(1:tiempo, vect_cant_sub, p)
   
   # Obtiene el vector de los descuentos D(0,t):
@@ -836,7 +836,7 @@ Arbol.HL.desc <- function(tiempo){
   return(vect_D_0_T)
 }
 
-# Matriz que consolida las trayectorias de las curvas de tasas de interés en colones:
+# Matriz que consolida las trayectorias de las curvas de tasas de interes en colones:
 Matriz.trayectorias.col = matrix(nrow = cant.simu, ncol = tiempo)
   
 for (i in 1:cant.simu){
@@ -870,7 +870,7 @@ Overnight <- Overnight %>%
   mutate(Delta=log((1+Tasa/100/360))*360/12)
   
   
-#------------------------ Parámetros Ho-Lee USD ------------------------------
+#------------------------ Parametros Ho-Lee USD ------------------------------
   
 
 # Se calcula la varianza mensual:
@@ -880,14 +880,14 @@ varianza.mensual.dol<-30*var(Overnight$Delta)
 u2.dol<-1+sqrt(varianza.mensual.dol) 
 d2.dol<-1-sqrt(varianza.mensual.dol)
   
-# Fijamos el parámetro fijo k del modelo:
+# Fijamos el parametro fijo k del modelo:
 k.dol <- d2.dol/u2.dol
 
 
 #------------------------- Funciones Ho-Lee USD ------------------------------
   
 
-# Función para interpolar linealmente las tasas
+# Funcion para interpolar linealmente las tasas
 inter.lin.tasas <- function(puntos){
 
   # Se calculan los precios mensuales interpolados:
@@ -903,25 +903,25 @@ vec.tasas <- inter.lin.tasas(data.tasas)
 data.precios <- vec.tasas %>% mutate(Precio=(1+TasasS/2)^(-Vencimiento/6))
 vec.precios <-data.precios %>% select(-TasasS)
   
-# Función del parámetro de bajada:
+# Funcion del parametro de bajada:
 d.t = function(t, p, k.dol){ 
   (k.dol^(t-1))/((1 - p)*(k.dol^(t-1)) + p)
  } 
   
-# Función para encontrar la tasa corta dado un tiempo (Tao):
+# Funcion para encontrar la tasa corta dado un tiempo (Tao):
 Tasa.Corta.t = function(tao, cant_sub, p){
   
   # Se obtiene el precio de acuerdo al vector de precios:
   P_0_t = vec.precios[tao,2]
   P_0_T = vec.precios[tao+1,2]
     
-  # Se obtiene la tasa corta mediante la fórmula.
+  # Se obtiene la tasa corta mediante la formula.
   r_t = log(P_0_t/P_0_T) - log(d.t(tao + 1, p, k.dol)) + cant_sub*log(k.dol)
     
   return(r_t)  
 }
   
-# Función que realiza la simulación de una trayectoria aleatoria dado un periodo (tiempo):
+# Funcion que realiza la simulacion de una trayectoria aleatoria dado un periodo (tiempo):
 Arbol.HL.desc <- function(tiempo){   
   # Crea la probabilidad:
   p <- (1 - d2.dol)/(u2.dol - d2.dol)
@@ -932,7 +932,7 @@ Arbol.HL.desc <- function(tiempo){
   # Obtiene la cantidad de subidas acumuladas:
   vect_cant_sub = cumsum(trayectoria)
     
-  # Aplica la función de la tasa corta para cada instante;
+  # Aplica la funcion de la tasa corta para cada instante;
   vect_r_t = Vectorize(Tasa.Corta.t)(1:tiempo, vect_cant_sub, p)
     
   # Obtiene el vector de los descuentos D(0,t):
@@ -950,9 +950,9 @@ for (i in 1:cant.simu){
 }
   
    
-########################## Valoración de Bonos ###############################
+########################## Valoracion de Bonos ###############################
     
-# Función que devuleve un vector con los factores de descuento que se debe aplicar a un flujo específico:  
+# Funcion que devuleve un vector con los factores de descuento que se debe aplicar a un flujo especifico:  
 FactDesc <- function(fila){
   if (fila[,'COD_MON'] == 1){
     Factor<-Matriz.trayectorias.col[,floor(fila[,'tau'])]/
@@ -964,11 +964,11 @@ FactDesc <- function(fila){
   return(Factor)
 }
 
-# Se agrega al data frame de bonos tasa fija con características únicas la probabilidad de sobrevivencia (de no caer en default) por el plazo del periodo:
+# Se agrega al data frame de bonos tasa fija con caracteristicas unicas la probabilidad de sobrevivencia (de no caer en default) por el plazo del periodo:
 BONOS.TF.RESUMEN <- BONOS.TF.RESUMEN %>%
   mutate(Probabilidad=exp(-Parametro*Periodo))
  
-# Función para calcular el precio teórico de un bono tasa fija dadas las simulaciones de las trayectorias de tasas de interés:
+# Funcion para calcular el precio teorico de un bono tasa fija dadas las simulaciones de las trayectorias de tasas de interes:
 Tau.total.TF <- function(fila){
   if(fila[,"TIP_PER"]==0){
      tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
@@ -985,36 +985,36 @@ Tau.total.TF <- function(fila){
           mutate(Pago=ifelse(Fecha.Pago==FEC_VEN,1+TAS_FAC/100,TAS_FAC/100))
        }
   
-  # A la tabla de los flujos del bono tasa fija, se le aplica los factores de descuento para obtener los precios teóricos:    
+  # A la tabla de los flujos del bono tasa fija, se le aplica los factores de descuento para obtener los precios teoricos:    
   Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc)
   Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico),
                                       nrow=length(Precio.Teorico), byrow=T))
   
-  # Se multiplica el factor de descuento con el pago de cada flujo para obtener el precio teórico final del bono tasa fija:
+  # Se multiplica el factor de descuento con el pago de cada flujo para obtener el precio teorico final del bono tasa fija:
   Precio.Teorico <- Precio.Teorico*tabla$Pago
   Precio.Teorico<- apply(Precio.Teorico,2,sum)
    
   return(Precio.Teorico)
 }
     
-# Se calcula los precios teóricos de cada trayectoria a cada bono tasa fija con caracetrísticas únicas:
+# Se calcula los precios teoricos de cada trayectoria a cada bono tasa fija con caracetristicas unicas:
 BONOS.TF.PRECIOS <-lapply(split(BONOS.TF.RESUMEN,seq(nrow(BONOS.TF.RESUMEN))),
                           Tau.total.TF)
 
-# Se convierte a data frame la base que consolida las otras características de los bonos tasa fija con sus precios teóricos:
+# Se convierte a data frame la base que consolida las otras caracteristicas de los bonos tasa fija con sus precios teoricos:
 BONOS.TF.PRECIOS <- data.frame(matrix(unlist(BONOS.TF.PRECIOS),
                                       nrow=length(BONOS.TF.PRECIOS), 
                                       byrow=T))
 
-# Función que devuelve las variable bernoullis indicando si el bono cayó o no en default en cada trayectoria:
+# Funcion que devuelve las variable bernoullis indicando si el bono cayo o no en default en cada trayectoria:
 DEFAULT <- function(p){
   rbernoulli(n = cant.simu,p = p)
 }
 
-# Función vectorizada que devuelve las variable bernoullis indicando si el bono cayó o no en default en cada trayectoria:
+# Funcion vectorizada que devuelve las variable bernoullis indicando si el bono cayo o no en default en cada trayectoria:
 V_DEFAULT <- Vectorize(DEFAULT)
 
-# Variables bernoullis que indican si el bono tasa fija cayó o no en default en cada trayectoria de acuerdo a su probabilidad de sobrevivencia:
+# Variables bernoullis que indican si el bono tasa fija cayo o no en default en cada trayectoria de acuerdo a su probabilidad de sobrevivencia:
 Bernoullis <- t(V_DEFAULT(BONOS.TF.RESUMEN$Probabilidad))
 
 # Data frame con los precios de los bonos tasa fija incluyendo el riesgo de default:  
@@ -1022,7 +1022,7 @@ BONOS.TF.PRECIOS <- BONOS.TF.PRECIOS*Bernoullis
 BONOS.TF.PRECIOS <- cbind(BONOS.TF.RESUMEN$COD_ISIN,BONOS.TF.PRECIOS)
 colnames(BONOS.TF.PRECIOS)[1] <- 'COD_ISIN'
 
-# Data frame que consolida los resultados de los precios de los bonos tasa fija para cada trayectoria así como su precio esperado y sus características:
+# Data frame que consolida los resultados de los precios de los bonos tasa fija para cada trayectoria asi como su precio esperado y sus caracteristicas:
 BONOS.TF.RESULTADOS <- BONOS.TF[,c('COD_ISIN',
                                    'COD_ENT',
                                    'COD_MOD_INV',
@@ -1034,22 +1034,22 @@ BONOS.TF.RESULTADOS <- BONOS.TF[,c('COD_ISIN',
   group_by(COD_ISIN, COD_ENT, PRECIO_TEORICO_0) %>% 
   mutate(VAL_FAC = sum(VAL_FAC)) %>% ungroup() %>% 
   unique() %>% 
-  right_join(BONOS.TF.PRECIOS, by = "COD_ISIN")
+  left_join(BONOS.TF.PRECIOS, by = "COD_ISIN")
 
 
-#--------------- Ajuste para Redención Anticipada Tasa Fija ------------------
+#--------------- Ajuste para Redencion Anticipada Tasa Fija ------------------
 
 
-# Bonos tasa fija con características únicas para calcular su redención:
+# Bonos tasa fija con caracteristicas unicas para calcular su redencion:
 RESUMEN.TF <- BONOS.TF %>% distinct(FEC_DAT,FEC_VEN,COD_ISIN,TAS_FAC,
                                     TIP_PER,COD_MON,ES_REDE,TIR,
                                     Parametro,COD_INS)
 RESUMEN.TF <- RESUMEN.TF %>% filter(ES_REDE=='S')
 
-# Función que calcula si un bono tasa fija se redime o no y su precio en ese periodo:
+# Funcion que calcula si un bono tasa fija se redime o no y su precio en ese periodo:
 Redencion_TF <- function(fila){
 
-  # Calcula el precio con el cual se debe comparar el precio del bono tasa fija para determinar si hay o no redención anticipada:
+  # Calcula el precio con el cual se debe comparar el precio del bono tasa fija para determinar si hay o no redencion anticipada:
   Precio.gatillo <- function(fila,Contador){
       if(fila[,"COD_INS"] %in% c("tudes","TUDES")){
       if(fila[,"TIP_PER"]==0){
@@ -1091,13 +1091,13 @@ Redencion_TF <- function(fila){
     return(P_gatillo)
     }
   
-  # Función vectorizada que calcula el precio con el cual se debe comparar el precio del bono tasa fija para determinar si hay o no redención anticipada:
+  # Funcion vectorizada que calcula el precio con el cual se debe comparar el precio del bono tasa fija para determinar si hay o no redencion anticipada:
   V_Precio.gatillo <- Vectorize(Precio.gatillo,"Contador")
   
-  # Se determina el precio para cada periodo con el cual se debe comparar el precio del bono tasa fija para determinar si hay o no redención anticipada:
+  # Se determina el precio para cada periodo con el cual se debe comparar el precio del bono tasa fija para determinar si hay o no redencion anticipada:
   P_gatillo <- V_Precio.gatillo(fila,1:(Periodo-1))
   
-  # Función que calcula el precio teórico de un bono tasa fija con la opción de rendención anticipada para un periodo determinado:
+  # Funcion que calcula el precio teorico de un bono tasa fija con la opcion de rendencion anticipada para un periodo determinado:
   Tau.total.TF_reden <- function(fila,Contador){
     if(fila[,"TIP_PER"]==0){
       tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
@@ -1125,12 +1125,12 @@ Redencion_TF <- function(fila){
       return(Factor)
     }
     
-    # A la tabla de los flujos del bono tasa fija con redención anticipada, se le aplica los factores de descuento para obtener los precios teóricos:    
+    # A la tabla de los flujos del bono tasa fija con redencion anticipada, se le aplica los factores de descuento para obtener los precios teoricos:    
     Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc_reden)
     Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico), 
                                         nrow=length(Precio.Teorico), byrow=T))
     
-    # Se multiplica el factor de descuento con el pago de cada flujo para obtener el precio teórico final del bono tasa fija con redención anticipada:
+    # Se multiplica el factor de descuento con el pago de cada flujo para obtener el precio teorico final del bono tasa fija con redencion anticipada:
     Precio.Teorico <- Precio.Teorico*tabla$Pago
     Precio.Teorico<- apply(Precio.Teorico,2,sum)
     
@@ -1138,11 +1138,11 @@ Redencion_TF <- function(fila){
   }
   
   
-  # Data frame para incluir el periodo de venta de cada bono tasa fija con rendención anticipada y su precio respectivo:
+  # Data frame para incluir el periodo de venta de cada bono tasa fija con rendencion anticipada y su precio respectivo:
   data.frame<-as.data.frame(rep(NA,cant.simu))
   colnames(data.frame)<-'Periodo_Venta'
   
-  # Se determina el periodo de venta del bono tasa fija con redención anticipada:
+  # Se determina el periodo de venta del bono tasa fija con redencion anticipada:
   Periodo_Venta1<-NA
   k=1
   while(k<=length(P_gatillo) & sum(is.na(Periodo_Venta1))>0){
@@ -1160,7 +1160,7 @@ Redencion_TF <- function(fila){
   
   # En caso de que el bono tasa fija se venda dentro del plazo del periodo (12 meses), se determina su precio de venta:
   if(sum(is.na(data.frame$Periodo_Venta))<nrow(data.frame)){
-    # Función que calcula para cada trayectoria el precio de un bono tasa fija con redención anticipada en un periodo determinado:
+    # Funcion que calcula para cada trayectoria el precio de un bono tasa fija con redencion anticipada en un periodo determinado:
     Precio1<-function(k,Contador){
       if(is.na(Contador)){
         PRECIO1<-NA
@@ -1176,7 +1176,7 @@ Redencion_TF <- function(fila){
           return(Factor)
         }
         
-        # Calcula el precio de un bono tasa fija con redención anticipada para una trayectoria:
+        # Calcula el precio de un bono tasa fija con redencion anticipada para una trayectoria:
         Tau.total.TF_reden <- function(fila){
           if(fila[,"TIP_PER"]==0){
             tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
@@ -1195,7 +1195,7 @@ Redencion_TF <- function(fila){
                                  TAS_FAC/100))
           }
           
-          # Se aplica la función de factores de descuento a cada flujo del bono tasa fija:
+          # Se aplica la funcion de factores de descuento a cada flujo del bono tasa fija:
           Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),
                                    FactDesc_reden)
           Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico),
@@ -1218,10 +1218,10 @@ Redencion_TF <- function(fila){
       return(PRECIO1)
     }
     
-    # Se vectoriza la función que calcula el precio en cada periodo de un bono con redención anticipada: 
+    # Se vectoriza la funcion que calcula el precio en cada periodo de un bono con redencion anticipada: 
     V_Precio1 <- Vectorize(Precio1,vectorize.args = c('k','Contador'))
     
-    # Data frame que consolida el escenario, el precio del bono tasa fija en cada periodo, el periodo de venta y el precio final del bono tasa fija con redención anticipada: 
+    # Data frame que consolida el escenario, el precio del bono tasa fija en cada periodo, el periodo de venta y el precio final del bono tasa fija con redencion anticipada: 
     data.frame <- data.frame %>% mutate(k=1:nrow(data.frame)) %>% 
       mutate(PRECIO1=V_Precio1(k,Periodo_Venta),
              PrecioInicial=t(as.matrix(BONOS.TF.RESULTADOS[which(BONOS.TF.RESULTADOS$COD_ISIN==
@@ -1229,7 +1229,7 @@ Redencion_TF <- function(fila){
                                                            9:ncol(BONOS.TF.RESULTADOS)]))) %>%
       mutate(PRECIOFINAL=ifelse(is.na(PRECIO1),PrecioInicial,PRECIO1))
     
-    # Se modifica el precio de los bonos tasa fija con redención anticipada en el data frame de resultados:
+    # Se modifica el precio de los bonos tasa fija con redencion anticipada en el data frame de resultados:
     BONOS.TF.RESULTADOS[which(BONOS.TF.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']),
                         9:ncol(BONOS.TF.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
                                                           each=length(which(BONOS.TF.RESULTADOS$COD_ISIN==
@@ -1239,20 +1239,20 @@ Redencion_TF <- function(fila){
   
 }
 
-# Se aplica la función de rendención a los bonos tasa fija con posibilidad de redención anticipada: 
+# Se aplica la funcion de rendencion a los bonos tasa fija con posibilidad de redencion anticipada: 
 for(j in 1:nrow(RESUMEN.TF)){
   Redencion_TF(RESUMEN.TF[j,])
 }
 
 
-#--------------- Ajuste para Redención Anticipada Tasa Variable ------------------
+#--------------- Ajuste para Redencion Anticipada Tasa Variable ------------------
 
 
-# Se agrega la probabilidad de sobrevivencia (no caer en deafult) al data frame de los bonos tasa variable con características únicas:
+# Se agrega la probabilidad de sobrevivencia (no caer en deafult) al data frame de los bonos tasa variable con caracteristicas unicas:
 BONOS.TV.RESUMEN <- BONOS.TV.RESUMEN %>% 
   mutate(Probabilidad=exp(-Parametro*Periodo))
  
-# Función para calcular el precio teórico de un bono tasa variable dadas las simulaciones de las trayectorias de tasas de interés:
+# Funcion para calcular el precio teorico de un bono tasa variable dadas las simulaciones de las trayectorias de tasas de interes:
 Tau.total.TV <- function(fila){
   if(fila[,"TIP_PER"]==0){
     tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
@@ -1271,28 +1271,28 @@ Tau.total.TV <- function(fila){
     }
   
   
-  # A la tabla de los flujos del bono tasa variable, se le aplica los factores de descuento para obtener los precios teóricos:    
+  # A la tabla de los flujos del bono tasa variable, se le aplica los factores de descuento para obtener los precios teoricos:    
   Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc)
   Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico),
                                       nrow=length(Precio.Teorico), 
                                       byrow=T))
   
-  # Se multiplica el factor de descuento con el pago de cada flujo para obtener el precio teórico final del bono tasa variable:
+  # Se multiplica el factor de descuento con el pago de cada flujo para obtener el precio teorico final del bono tasa variable:
   Precio.Teorico <- Precio.Teorico*tabla$Pago
   Precio.Teorico<- apply(Precio.Teorico,2,sum)
   return(Precio.Teorico)
 }
     
-# Se calcula los precios teóricos de cada trayectoria a cada bono tasa variable con caracetrísticas únicas:
+# Se calcula los precios teoricos de cada trayectoria a cada bono tasa variable con caracetristicas unicas:
 BONOS.TV.PRECIOS <-lapply(split(BONOS.TV.RESUMEN,seq(nrow(BONOS.TV.RESUMEN))),
                           Tau.total.TV)
 
-# Se convierte a data frame la base que consolida las otras características de los bonos tasa variable con sus precios teóricos:
+# Se convierte a data frame la base que consolida las otras caracteristicas de los bonos tasa variable con sus precios teoricos:
 BONOS.TV.PRECIOS <- data.frame(matrix(unlist(BONOS.TV.PRECIOS), 
                                       nrow=length(BONOS.TV.PRECIOS),
                                       byrow=T))
     
-# Variables bernoullis que indican si el bono tasa variable cayó o no en default en cada trayectoria de acuerdo a su probabilidad de sobrevivencia:
+# Variables bernoullis que indican si el bono tasa variable cayo o no en default en cada trayectoria de acuerdo a su probabilidad de sobrevivencia:
 Bernoullis <- t(V_DEFAULT(BONOS.TV.RESUMEN$Probabilidad))
 
 # Data frame con los precios de los bonos tasa variable incluyendo el riesgo de default: 
@@ -1301,7 +1301,7 @@ BONOS.TV.PRECIOS <- cbind(BONOS.TV.RESUMEN$COD_ISIN,
                           BONOS.TV.PRECIOS)
 colnames(BONOS.TV.PRECIOS)[1] <- 'COD_ISIN'
     
-# Data frame que consolida los resultados de los precios de los bonos tasa variable para cada trayectoria así como su precio esperado y sus características:
+# Data frame que consolida los resultados de los precios de los bonos tasa variable para cada trayectoria asi como su precio esperado y sus caracteristicas:
 BONOS.TV.RESULTADOS <- BONOS.TV[,c('COD_ISIN',
                                    'COD_ENT',
                                    'COD_MOD_INV',
@@ -1315,15 +1315,15 @@ BONOS.TV.RESULTADOS <- BONOS.TV[,c('COD_ISIN',
   unique() %>% 
   right_join(BONOS.TV.PRECIOS, by = "COD_ISIN")
 
-# Bonos tasa variable con características únicas para calcular su redención:
+# Bonos tasa variable con caracteristicas unicas para calcular su redencion:
 RESUMEN.TV <- BONOS.TV %>% distinct(FEC_DAT,FEC_VEN,COD_ISIN,MAR_FIJ,
                                     TIP_PER,COD_MON,ES_REDE,TIR,
                                     Parametro,COD_INS)
 RESUMEN.TV <- RESUMEN.TV %>% filter(ES_REDE=='S')
 
-# Función que calcula si un bono tasa variable se redime o no y su precio en ese periodo:
+# Funcion que calcula si un bono tasa variable se redime o no y su precio en ese periodo:
 Redencion_TV <- function(fila){
-  # Calcula el precio con el cual se debe comparar el precio del bono tasa variable para determinar si hay o no redención anticipada:
+  # Calcula el precio con el cual se debe comparar el precio del bono tasa variable para determinar si hay o no redencion anticipada:
     Precio.gatillo <- function(fila,Contador){
       
       if(fila[,"TIP_PER"]==0){
@@ -1351,13 +1351,13 @@ Redencion_TV <- function(fila){
       return(P_gatillo)
     }
     
-    # Función vectorizada que calcula el precio con el cual se debe comparar el precio del bono tasa variable para determinar si hay o no redención anticipada:
+    # Funcion vectorizada que calcula el precio con el cual se debe comparar el precio del bono tasa variable para determinar si hay o no redencion anticipada:
     V_Precio.gatillo<-Vectorize(Precio.gatillo,"Contador")
     
-    # Se determina el precio para cada periodo con el cual se debe comparar el precio del bono tasa variable para determinar si hay o no redención anticipada:
+    # Se determina el precio para cada periodo con el cual se debe comparar el precio del bono tasa variable para determinar si hay o no redencion anticipada:
     P_gatillo<-V_Precio.gatillo(fila,1:(Periodo-1))
     
-    # Función que calcula el precio teórico de un bono tasa variable con la opción de rendención anticipada para un periodo determinado:
+    # Funcion que calcula el precio teorico de un bono tasa variable con la opcion de rendencion anticipada para un periodo determinado:
     Tau.total.TV_reden <- function(fila,Contador){
       if(fila[,"TIP_PER"]==0){
         tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
@@ -1389,24 +1389,24 @@ Redencion_TV <- function(fila){
         return(Factor)
       }
       
-      # A la tabla de los flujos del bono tasa variable con redención anticipada, se le aplica los factores de descuento para obtener los precios teóricos:    
+      # A la tabla de los flujos del bono tasa variable con redencion anticipada, se le aplica los factores de descuento para obtener los precios teoricos:    
       Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc_reden)
       Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico),
                                           nrow=length(Precio.Teorico),
                                           byrow=T))
       
-      # Se multiplica el factor de descuento con el pago de cada flujo para obtener el precio teórico final del bono tasa variable con redención anticipada:
+      # Se multiplica el factor de descuento con el pago de cada flujo para obtener el precio teorico final del bono tasa variable con redencion anticipada:
       Precio.Teorico <- Precio.Teorico*tabla$Pago
       Precio.Teorico <- apply(Precio.Teorico,2,sum)
       
       return(Precio.Teorico)
     }
     
-    # Data frame para incluir el periodo de venta de cada bono tasa variable con rendención anticipada y su precio respectivo:
+    # Data frame para incluir el periodo de venta de cada bono tasa variable con rendencion anticipada y su precio respectivo:
     data.frame <- as.data.frame(rep(NA,cant.simu))
     colnames(data.frame) <- 'Periodo_Venta'
 
-    # Se determina el periodo de venta del bono tasa variable con redención anticipada:
+    # Se determina el periodo de venta del bono tasa variable con redencion anticipada:
     Periodo_Venta1 <- NA
     k=1
     while(k <= length(P_gatillo) & sum(is.na(Periodo_Venta1))>0){
@@ -1423,7 +1423,7 @@ Redencion_TV <- function(fila){
     
     # En caso de que el bono tasa variable se venda dentro del plazo del periodo (12 meses), se determina su precio de venta:
     if(sum(is.na(data.frame$Periodo_Venta))<nrow(data.frame)){
-      # Función que calcula para cada trayectoria el precio de un bono tasa variable con redención anticipada en un periodo determinado:
+      # Funcion que calcula para cada trayectoria el precio de un bono tasa variable con redencion anticipada en un periodo determinado:
       Precio1<-function(k,Contador){
         if(is.na(Contador)){
           PRECIO1<-NA
@@ -1439,7 +1439,7 @@ Redencion_TV <- function(fila){
             return(Factor)
           }
           
-          # Función que calcula para cada trayectoria el precio de un bono tasa variable con redención anticipada en un periodo determinado:
+          # Funcion que calcula para cada trayectoria el precio de un bono tasa variable con redencion anticipada en un periodo determinado:
           Tau.total.TV_reden <- function(fila){
             if(fila[,"TIP_PER"]==0){
               tabla <- fila %>%  mutate(tau = Tau(FEC_DAT, FEC_VEN),
@@ -1457,7 +1457,7 @@ Redencion_TV <- function(fila){
                                    (V_Cupones.variables(tau,COD_INS)+MAR_FIJ)/100))
             }
             
-            # Se aplica la función de factores de descuento a cada flujo del bono tasa variable:
+            # Se aplica la funcion de factores de descuento a cada flujo del bono tasa variable:
             Precio.Teorico <- lapply(split(tabla,seq(nrow(tabla))),FactDesc_reden)
             Precio.Teorico <- data.frame(matrix(unlist(Precio.Teorico),
                                                 nrow=length(Precio.Teorico), 
@@ -1476,24 +1476,24 @@ Redencion_TV <- function(fila){
         return(PRECIO1)
         }
       
-      # Se vectoriza la función que calcula el precio en cada periodo de un bono con redención anticipada: 
+      # Se vectoriza la funcion que calcula el precio en cada periodo de un bono con redencion anticipada: 
       V_Precio1 <- Vectorize(Precio1,vectorize.args = c('k','Contador'))
       
-      # Data frame que consolida el escenario, el precio del bono tasa variable en cada periodo, el periodo de venta y el precio final del bono tasa variable con redención anticipada: 
+      # Data frame que consolida el escenario, el precio del bono tasa variable en cada periodo, el periodo de venta y el precio final del bono tasa variable con redencion anticipada: 
       data.frame <- data.frame %>% mutate(k=1:nrow(data.frame)) %>% 
         mutate(PRECIO1=V_Precio1(k,Periodo_Venta),
                PrecioInicial=t(as.matrix(BONOS.TV.RESULTADOS[which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])[1],
                                                              9:ncol(BONOS.TV.RESULTADOS)]))) %>%
         mutate(PRECIOFINAL=ifelse(is.na(PRECIO1),PrecioInicial,PRECIO1))
        
-      # Se modifica el precio de los bonos tasa variable con redención anticipada en el data frame de resultados:
+      # Se modifica el precio de los bonos tasa variable con redencion anticipada en el data frame de resultados:
       BONOS.TV.RESULTADOS[which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']),
                           9:ncol(BONOS.TV.RESULTADOS)]<-matrix(rep(data.frame$PRECIOFINAL,
                                                             each=length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN']))),byrow = F,nrow = length(which(BONOS.TV.RESULTADOS$COD_ISIN==fila[,'COD_ISIN'])))   
   }
 }
 
-# Se aplica la función de rendención a los bonos tasa variable con posibilidad de redención anticipada: 
+# Se aplica la funcion de rendencion a los bonos tasa variable con posibilidad de redencion anticipada: 
 for(j in 1:nrow(RESUMEN.TV)){
   Redencion_TV(RESUMEN.TV[j,])
 }
@@ -1504,12 +1504,12 @@ for(j in 1:nrow(RESUMEN.TV)){
 
                       #################################
                       ###                           ###
-                      ###  4. Módulo de Acciones    ###
+                      ###  4. Modulo de Acciones    ###
                       ###                           ###
                       #################################
 
 
-################## Manipulación e Imputación de Datos ########################
+################## Manipulacion e Imputacion de Datos ########################
 
 
 # Se inicializa la matriz R:
@@ -1518,7 +1518,7 @@ matriz.R <- ACCIONES %>% group_by(FEC_DAT, COD_ISIN, COD_ENT) %>%
   ungroup() %>% 
   select(-nr,-MAX)
     
-# Se encuentran cuales son los títulos a valorar:
+# Se encuentran cuales son los titulos a valorar:
 titulos.ul <- matriz.R %>% 
   mutate(fec.valoracion = paste(year(FEC_DAT),month(FEC_DAT),sep="-")) %>% 
   filter(fec.valoracion==paste(anno,mes,sep="-"))
@@ -1526,7 +1526,7 @@ exa.fec <- max(titulos.ul$FEC_DAT)
 titulos.ul <- titulos.ul %>% filter(FEC_DAT == exa.fec) %>% 
   select(COD_ISIN) %>% unique()
 
-# Se segregan los títulos:
+# Se segregan los titulos:
 matriz.R <- as.matrix(matriz.R %>% filter(exa.fec>=FEC_DAT) %>% 
                         filter(COD_ISIN %in% titulos.ul$COD_ISIN) %>% 
                         select(COD_ISIN, FEC_DAT, Precio) %>% 
@@ -1543,13 +1543,13 @@ matriz.R <- as.matrix(matriz.R %>% filter(exa.fec>=FEC_DAT) %>%
 # Precio Inicial sin segregar:
 Ini.pre <- matriz.R[, c(1,ncol(matriz.R))] 
     
-# Cambian los índices:
+# Cambian los indices:
 indices <- matriz.R[,1]
 matriz.R <- matriz.R[,-1]
 matriz.R <- apply(matriz.R, 2, as.numeric)
 row.names(matriz.R) <- indices
     
-# Total de observaciones por título:
+# Total de observaciones por titulo:
 titulo.ob <- as.data.frame(rowSums(!is.na(matriz.R)) > (nrow(titulos.ul)+1))
 colnames(titulo.ob) <- "Criterio"
     
@@ -1578,6 +1578,9 @@ matriz.R2 <- matriz.R[,((ncol(matriz.R)-2):(ncol(matriz.R)-1))]/
 matriz.R2[which(!is.finite(matriz.R2))] <- NA
 matriz.R <- cbind(matriz.R1, matriz.R2)
 
+# Correccion de la matriz R:
+matriz.R[(lim.rend < matriz.R)] <- 1
+
 # Se imputan los datos:
 matriz.R <- ClustImpute(as.data.frame(matriz.R), 
                         nr_cluster = round((cant.tit+1)/2),
@@ -1586,14 +1589,14 @@ matriz.R <- ClustImpute(as.data.frame(matriz.R),
 # Se traspone la matriz:
 matriz.R <- t(as.matrix(matriz.R))
     
-# Se crean los conjuntos de eventos con clasificación por k-means:
+# Se crean los conjuntos de eventos con clasificacion por k-means:
 acc.clas <- kmeans(matriz.R, cant.tit+1, iter.max = 1000, 
                    nstart = 1000, algorithm = "MacQueen")$cluste
     
-# Se aplica la nueva clasificación:
+# Se aplica la nueva clasificacion:
 matriz.R <- t(matriz.R)
     
-# Porbabilidad Objetiva:
+# Probabilidad Objetiva:
 prob.objetiva <- as.data.frame(table(acc.clas))$Freq/
   sum(as.data.frame(table(acc.clas))$Freq)
     
@@ -1605,24 +1608,21 @@ Ini.pre <- as.data.frame(Ini.pre) %>%
   filter(COD_ISIN %in% rownames(matriz.R))
 indexA <- Ini.pre$COD_ISIN
 Ini.pre <- as.matrix(as.data.frame(Ini.pre) %>% select(-COD_ISIN))
-colnames(Ini.pre) <- "acción"
+colnames(Ini.pre) <- "accion"
 Ini.pre <- apply(Ini.pre, 2, as.numeric)
 row.names(Ini.pre) <- indexA
 
-# Corrección de la matriz R:
-matriz.R[(lim.rend < matriz.R)] <- 1
 
-
-######################## Simulación de Acciones ##############################
+######################## Simulacion de Acciones ##############################
 
 # Se inicializa la matriz:
 simu.matriz <- matrix(row.names(matriz.R), ncol = 1)
 colnames(simu.matriz) <- "COD_ISIN"
 
-# Se generan las simulaciones:
+# Se generan las simulaciones: 
 for(mesi in 1:cant.simu){
   
-  # Se ejecuta la simulación para un periodo:
+  # Se ejecuta la simulacion para un periodo:
   ejec <- matriz.R%*%rmultinom(Periodo, 1, prob.objetiva)
   ejec <- apply(ejec, 1, prod)
   
@@ -1631,7 +1631,7 @@ for(mesi in 1:cant.simu){
   colnames(simu.matriz)[ncol(simu.matriz)] <- paste("X",mesi, sep = "")
 }
 
-# Se extrae la información de la simulación:
+# Se extrae la informacion de la simulacion:
 ACCIONES.RESULTADOS <- ACCIONES %>%
   filter(FEC_DAT==exa.fec, COD_ISIN%in%row.names(titulo.ob %>%
                                                    filter(Criterio == TRUE))) %>% 
@@ -1648,205 +1648,12 @@ ACCIONES.RESULTADOS <- ACCIONES %>%
 
                       #################################
                       ###                           ###
-                      ###   5. Cálculo del RORAC    ###
+                      ###   5. Calculo del RORAC    ###
                       ###                           ###
                       #################################
 
 
-################### Optimización del Portafolio de Mercado ###################
-
-
-# Valor Facial Total del Portafolio:
-val.total.fac <- sum(BONOS.TF.RESULTADOS$VAL_FAC)+sum(BONOS.TV.RESULTADOS$VAL_FAC)+sum(ACCIONES.RESULTADOS$VAL_FAC)
-
-# Se corrigen los valores faciales:
-BONOS.TF.RESULTADOS$VAL_FAC <- BONOS.TF.RESULTADOS$VAL_FAC/val.total.fac
-BONOS.TV.RESULTADOS$VAL_FAC <- BONOS.TV.RESULTADOS$VAL_FAC/val.total.fac
-ACCIONES.RESULTADOS$VAL_FAC <- ACCIONES.RESULTADOS$VAL_FAC/val.total.fac
-
-# Se unifican los títulos:
-Portafolio.total <- rbind(BONOS.TF.RESULTADOS, BONOS.TV.RESULTADOS, ACCIONES.RESULTADOS)
-
-# Función de Optimización de Portafolio:
-Port.Optim <- function(X){
-
-  # se define el portafolio total:
-  Titulos.optim <- Portafolio.total
-  
-  # Se multiplican los valores faciales:
-  Titulos.optim <- cbind(Titulos.optim[,1:8], 
-                         apply(as.matrix(Titulos.optim[,-(1:8)]),
-                               2,
-                               as.numeric)*as.vector(X))
-  
-  # Valore del portafolio actual:
-  val.portafolio.act <- sum(Titulos.optim$PRECIO_TEORICO_0*X)
-  
-  # Valores futuros:
-  val.portafolio.fut <- colSums(Titulos.optim[,-(1:8)])
-  
-  # CVAR del valor del portafolio futuro:
-  CVAR.G <- mean(sort(val.portafolio.fut)[(cant.simu*(1-confianza)):cant.simu])
-  
-  # RORAC del portafolio:
-  RORAC.G <- -((mean(val.portafolio.fut)-
-                val.portafolio.act)/(val.portafolio.act+CVAR.G))
-  
-  # Restricciones y Límites:
-  
-  # Mantener proporción:
-  if(sum(X)!=1){
-    RORAC.G <- RORAC.G+abs(1-sum(X))*1000
-  }
-  
-  # Por sector:
-  Sector.tit <- Titulos.optim %>% filter(COD_SEC == 1)
-  Sector.prop <- sum(0.8<colSums(Sector.tit[,-(1:8)])/val.portafolio.fut)
-  if(0<Sector.prop){
-    RORAC.G <- RORAC.G+Sector.prop/cant.simu
-  }
-  
-  # Por emisor:
-  Emisor.tit <- t(rowsum(as.matrix(Titulos.optim[,-(1:8)]), 
-                            Titulos.optim$COD_EMI))/val.portafolio.fut
-  Emisor.prop <- sum(0.1 < Emisor.tit)
-  if(0<Emisor.prop){
-    RORAC.G <- RORAC.G+Emisor.prop/cant.simu
-  }
-  
-  # Por administración externa:
-  Admin.tit <- Titulos.optim %>% filter(ADMIN != 1)
-  Admin.prop <- sum(0.1<colSums(Admin.tit[,-(1:8)])/val.portafolio.fut)
-  if(0<Admin.prop){
-    RORAC.G <- RORAC.G+Admin.prop/cant.simu
-  }
-  
-  # Por títulos emitidos en el extrangero:
-  Extr.tit <- Titulos.optim %>% filter(!substring(COD_ISIN, 1, 2) %in% c("CR","00"))
-  Extr.prop <- sum(0.25<(colSums(Extr.tit[,-(1:8)])/val.portafolio.fut))
-  if(0<Extr.prop){
-    RORAC.G <- RORAC.G+Extr.prop/cant.simu
-  }
-  
-  # Por modalidad de inversión:
-  Modal.tit <- t(rowsum(as.matrix(Titulos.optim[,-(1:8)]), 
-                      Titulos.optim$COD_MOD_INV))/val.portafolio.fut
-  Modal.prop1 <- sum(0.1 < Modal.tit[,c("DI","P2","E1")])
-  Modal.prop2 <- sum(0.25 < Modal.tit[,c("P1")])
-  if(0<(Modal.prop1+Modal.prop2)){
-    RORAC.G <- RORAC.G+(Modal.prop1+Modal.prop2)/cant.simu
-  }
-  
-  return(RORAC.G)
-}
-
-# Optimización por PSO:
-VAL.FAC.PSO <- psoptim(par = c(BONOS.TF.RESULTADOS$VAL_FAC,
-                               BONOS.TV.RESULTADOS$VAL_FAC,
-                               ACCIONES.RESULTADOS$VAL_FAC),
-                       fn = Port.Optim,
-                       lower = rep(0+(1/(9^1000)),sum(nrow(BONOS.TF.RESULTADOS)+
-                                           nrow(BONOS.TV.RESULTADOS)+
-                                           nrow(ACCIONES.RESULTADOS))),
-                       upper = rep(1-(1/(9^1000)),sum(nrow(BONOS.TF.RESULTADOS)+
-                                           nrow(BONOS.TV.RESULTADOS)+
-                                           nrow(ACCIONES.RESULTADOS))),
-                       control = list(maxit = Int.Port,
-                                      s = round(0.1*Int.Port)+1,
-                                      w = -0.1832,
-                                      c.p =0.5287,
-                                      c.g = 3.1913))
-
-# Optimización por SA:
-VAL.FAC.SA <- optim_sa(fun = Port.Optim,
-                       start = c(BONOS.TF.RESULTADOS$VAL_FAC,
-                                 BONOS.TV.RESULTADOS$VAL_FAC,
-                                 ACCIONES.RESULTADOS$VAL_FAC),
-                       trace = TRUE,
-                       lower = rep(0+(1/(9^1000)),sum(nrow(BONOS.TF.RESULTADOS)+
-                                                        nrow(BONOS.TV.RESULTADOS)+
-                                                        nrow(ACCIONES.RESULTADOS))),
-                       upper = rep(1-(1/(9^1000)),sum(nrow(BONOS.TF.RESULTADOS)+
-                                                        nrow(BONOS.TV.RESULTADOS)+
-                                                        nrow(ACCIONES.RESULTADOS))),
-                       control = list(nlimit = Int.Port))
-
-# Revisión de Límites:
-Titulos.optim.r <- cbind(Portafolio.total[,1:8], 
-                       apply(as.matrix(Portafolio.total[,-(1:8)]),
-                             2,
-                             as.numeric)*VAL.FAC.PSO$par)
-# Valores futuros:
-val.portafolio.fut.r <- colSums(Titulos.optim.r[,-(1:8)])
-
-# Por sector:
-Sector.tit.r <- Titulos.optim.r %>% filter(COD_SEC == 1)
-Sector.prop.r <- 1-sum(0.8<colSums(Sector.tit.r[,-(1:8)])/val.portafolio.fut.r)/cant.simu
-
-# Por emisor:
-Emisor.tit.r <- t(rowsum(as.matrix(Titulos.optim.r[,-(1:8)]), 
-                       Titulos.optim.r$COD_EMI))/val.portafolio.fut.r
-Emisor.prop.r <- 1-sum(0.1 < Emisor.tit.r)/(cant.simu*dim(Emisor.tit.r)[2])
-
-# Por administración externa:
-Admin.tit.r <- Titulos.optim.r %>% filter(ADMIN != 1)
-Admin.prop.r <- 1-sum(0.1<colSums(Admin.tit.r[,-(1:8)])/val.portafolio.fut.r)/cant.simu
-
-# Por títulos emitidos en el extrangero:
-Extr.tit.r <- Titulos.optim.r %>% filter(!substring(COD_ISIN, 1, 2) %in% c("CR","00"))
-Extr.prop.r <- 1-sum(0.25<(colSums(Extr.tit.r[,-(1:8)])/val.portafolio.fut.r))/cant.simu
-
-# Por modalidad de inversión:
-Modal.tit.r <- t(rowsum(as.matrix(Titulos.optim.r[,-(1:8)]), 
-                      Titulos.optim.r$COD_MOD_INV))/val.portafolio.fut.r
-Modal.prop1.r <- 1-sum(0.1 < Modal.tit.r[,c("DI","P2","E1")])/(cant.simu*3)
-Modal.prop2.r <- 1-sum(0.25 < Modal.tit.r[,c("P1")])/cant.simu
-
-# Datos de revisión:
-Datos.limites <- data.frame(Límite = c("Sector Público",
-                                       "Emisor", 
-                                       "Administración Externa",
-                                       "Títulos Emitidos en el Extrangero",
-                                       "Modalidad de inversión",
-                                       "Modalidad de inversión"),
-                            `Criterio de Límite` = c("No se debe obtener más del 80%",
-                                                     "Máximo de 10% por emisor",
-                                                     "Máximo de 10% en administración externa",
-                                                     "Máximo de 25% en títulos Extrangeros",
-                                                     "Máximo de 10% en DI, P2 y E1",
-                                                     "Máximo de 25% en P1"),
-                            Ajuste = c(Sector.prop.r,
-                                       Emisor.prop.r, 
-                                       Admin.prop.r,
-                                       Extr.prop.r,
-                                       Modal.prop1.r,
-                                       Modal.prop2.r))
-
-# CVAR del portafolio futuro optimo:
-CVAR.opti <- mean(sort(colSums(apply(as.matrix(Portafolio.total[,-(1:8)]),
-                             2,
-                             as.numeric)*
-                         VAL.FAC.PSO$par))[(cant.simu*(1-confianza)):cant.simu])
-
-# Valor del portafolio actual optimo:
-val.act.opt <- sum(Portafolio.total$PRECIO_TEORICO_0*VAL.FAC.PSO$par)
-
-# Rendimiento optimo:
-REND.opti <- (mean(colSums(apply(as.matrix(Portafolio.total[,-(1:8)]),
-                                 2,
-                                 as.numeric)*
-                             VAL.FAC.PSO$par))-
-                val.act.opt)/val.act.opt
-
-# RORAC del portafolio futuro optimo:
-RORAC.opti <- ((mean(colSums(apply(as.matrix(Portafolio.total[,-(1:8)]),
-                                   2,
-                                   as.numeric)*
-                               VAL.FAC.PSO$par))-
-                  val.act.opt)/(val.act.opt+CVAR.opti))
-
-
-##################### Cálculo del Benchmark de Mercado #######################
+##################### Calculo del Benchmark de Mercado #######################
 
 
 # Se calcula el valor del portafolio hoy:
@@ -1870,20 +1677,21 @@ acciones.fut.b <- colSums(matrix(rep(ACCIONES.RESULTADOS$PRECIO_TEORICO_0*ACCION
 
 # Rendimiento del portafolio promedio:
 REND.Bench <- (mean(acciones.fut.b+bonos.tf.fut.b+bonos.tv.fut.b)-
-             val.portafolio.hoy)/val.portafolio.hoy
+             val.portafolio.hoy)
 
 # CVAR del valor del portafolio futuro:
-CVAR.Bench <- mean(sort(acciones.fut.b+bonos.tf.fut.b+bonos.tv.fut.b)[(cant.simu*(1-confianza)):cant.simu])
+CVAR.Bench <- val.portafolio.hoy-mean(sort(acciones.fut.b+bonos.tf.fut.b+bonos.tv.fut.b, decreasing = TRUE)[(cant.simu*(1-significancia)):cant.simu])
 
 # RORAC del portafolio:
-RORAC.Bench <- (mean(acciones.fut.b+bonos.tf.fut.b+bonos.tv.fut.b)-
-              val.portafolio.hoy)/(val.portafolio.hoy+CVAR.Bench)
+RORAC.Bench <- REND.Bench/CVAR.Bench
+CVAR.Bench <- CVAR.Bench/val.portafolio.hoy
+REND.Bench <- REND.Bench/val.portafolio.hoy
 
 
-###################### Portafolio Individual por Régimen #####################
+###################### Portafolio Individual por Regimen #####################
 
 
-#------------------------ Parámetros de Almacenamiento -----------------------
+#------------------------ Parametros de Almacenamiento -----------------------
 
 
 # Se dan las entidades observadas:
@@ -1896,20 +1704,20 @@ valorhoy <- c()
 cont <- 1
 
 
-#---------------------------- Cálculo de RORACs ------------------------------
+#---------------------------- Calculo de RORACs ------------------------------
 
 # se calculan iterativamente los RORACS de cada entidad:
 for(reg in Entidades){
   
-  # se segrega el portafolio
+  # Se segrega el portafolio
   bonos.tf.reg <- BONOS.TF.RESULTADOS %>% filter(COD_ENT==reg)
   bonos.tv.reg <- BONOS.TV.RESULTADOS %>% filter(COD_ENT==reg)
   accion.reg <- ACCIONES.RESULTADOS %>% filter(COD_ENT==reg)
   
-  # Se calcula el valor del protafolio hoy:
-  val.portafolio.hoy.reg <- sum(bonos.tf.reg$PRECIO_TEORICO_0*bonos.tf.reg$VAL_FAC) +
-    sum(bonos.tv.reg$PRECIO_TEORICO_0*bonos.tv.reg$VAL_FAC) +
-    sum(accion.reg$VAL_FAC*accion.reg$PRECIO_TEORICO_0)
+  # Valor Facial Total del Portafolio:
+  val.total.por.reg <- sum(bonos.tf.reg$VAL_FAC*bonos.tf.reg$PRECIO_TEORICO_0)+
+    sum(bonos.tv.reg$VAL_FAC*bonos.tv.reg$PRECIO_TEORICO_0)+
+    sum(accion.reg$VAL_FAC*accion.reg$VAL_FAC)
   
   # Se calculan los valores del protafolio futuro:
   bonos.tf.fut.reg <- colSums(matrix(rep(bonos.tf.reg$VAL_FAC, 
@@ -1942,32 +1750,212 @@ for(reg in Entidades){
   
   # Rendimiento del portafolio promedio:
   REND.reg <- (mean(acciones.fut.reg+bonos.tf.fut.reg+bonos.tv.fut.reg)-
-                 val.portafolio.hoy.reg)/val.portafolio.hoy.reg
+                 val.total.por.reg)
   
-  # CVAR del valor del protafolio futuro:
-  CVAR.reg <- mean(sort(acciones.fut.reg+bonos.tf.fut.reg+bonos.tv.fut.reg)[(cant.simu*(1-confianza)):cant.simu])
+  # CVAR del valor del portafolio futuro:
+  CVAR.reg <- (val.total.por.reg-mean(sort(acciones.fut.reg+bonos.tf.fut.reg+bonos.tv.fut.reg, decreasing = TRUE)[(cant.simu*(1-significancia)):cant.simu]))
   
   # RORAC del protafolio:
-  RORAC.reg <- (mean(acciones.fut.reg+bonos.tf.fut.reg+bonos.tv.fut.reg)-
-                  val.portafolio.hoy.reg)/(val.portafolio.hoy.reg+CVAR.reg)
+  RORAC.reg <- REND.reg/CVAR.reg
+  CVAR.reg <- CVAR.reg/val.total.por.reg
+  REND.reg <- REND.reg/val.total.por.reg
   
-  #guardamos la información:
+  #guardamos la informacion:
   cvars[cont] <- CVAR.reg
   rendimientos[cont] <- REND.reg
-  valorhoy[cont] <- val.portafolio.hoy.reg
+  valorhoy[cont] <- val.total.por.reg
   roracs[cont] <- RORAC.reg
   
   # contador:
   cont <- cont+1
 }
 
-# se crean los datos finales:
-Resultados.rorac <- data.frame(Entidad = Entidades, Valor = valorhoy,
-                               Rendimiento = rendimientos, CVaR = cvars,
-                               RORAC = roracs) %>%
-  arrange(RORAC) 
 
-# Agregamos la información general:
+################### Optimizacion del Portafolio de Mercado ###################
+
+# Cantidad de capital a distribuir:
+masaDis <- 1
+
+# Valor Facial Total del Portafolio:
+val.total.por <- val.portafolio.hoy/masaDis
+
+# Se unifican los titulos:
+Portafolio.total <- rbind(BONOS.TF.RESULTADOS, BONOS.TV.RESULTADOS, ACCIONES.RESULTADOS)
+
+# Funcion de Optimizacion de Portafolio:
+Port.Optim <- function(X){
+  
+  # se define el portafolio total:
+  Titulos.optim <- Portafolio.total
+  
+  # Se escalan las cantidades de cada título:
+  Titulos.optim$VAL_FAC <- Titulos.optim$VAL_FAC/val.total.por
+  
+  # Se multiplican los valores faciales:
+  Titulos.optim <- cbind(Titulos.optim[,1:8], 
+                         apply(as.matrix(Titulos.optim[,-(1:8)]),
+                               2,
+                               as.numeric)*as.vector(X))
+  
+  # Valores futuros:
+  val.portafolio.fut <- colSums(Titulos.optim[,-(1:8)])
+  
+  # Restricciones y Limites:
+  
+  # Por sector:
+  Sector.tit <- Titulos.optim %>% filter(COD_SEC == 1)
+  Sector.prop <- sum(0.8<colSums(Sector.tit[,-(1:8)])/val.portafolio.fut)
+  if(0<Sector.prop){
+    return(10000)
+  }
+  
+  # Por emisor:
+  Emisor.tit <- t(rowsum(as.matrix(Titulos.optim[,-(1:8)]), 
+                         Titulos.optim$COD_EMI))/val.portafolio.fut
+  Emisor.prop <- sum(0.1 < Emisor.tit)
+  if(0<Emisor.prop){
+    return(10000)
+  }
+  
+  # Por administracion externa:
+  Admin.tit <- Titulos.optim %>% filter(ADMIN != 1)
+  Admin.prop <- sum(0.1<colSums(Admin.tit[,-(1:8)])/val.portafolio.fut)
+  if(0<Admin.prop){
+    return(10000)
+  }
+  
+  # Por titulos emitidos en el extrangero:
+  Extr.tit <- Titulos.optim %>% filter(!substring(COD_ISIN, 1, 2) %in% c("CR","00"))
+  Extr.prop <- sum(0.25<(colSums(Extr.tit[,-(1:8)])/val.portafolio.fut))
+  if(0<Extr.prop){
+    return(10000)
+  }
+  
+  # Por modalidad de inversion:
+  Modal.tit <- t(rowsum(as.matrix(Titulos.optim[,-(1:8)]), 
+                        Titulos.optim$COD_MOD_INV))/val.portafolio.fut
+  Modal.prop1 <- sum(0.1 < Modal.tit[,c("DI","P2","E1")])
+  Modal.prop2 <- sum(0.25 < Modal.tit[,c("P1")])
+  if(0<(Modal.prop1+Modal.prop2)){
+    return(10000)
+  }
+  
+  # Valore del portafolio actual:
+  val.portafolio.act <- sum(Titulos.optim$PRECIO_TEORICO_0*X)
+  
+  # CVAR del valor del portafolio futuro:
+  CVAR.G <- mean(sort(val.portafolio.fut, decreasing = TRUE)[(cant.simu*(1-significancia)):cant.simu])
+  
+  # RORAC del portafolio:
+  RORAC.G <- -((mean(val.portafolio.fut)-
+                  val.portafolio.act)/(val.portafolio.act-CVAR.G))
+  
+  return(RORAC.G)
+}
+
+# Valores Iniciales:
+val.inicial.op <- Portafolio.total %>% filter(COD_ENT==Entidades[which.max(roracs)])
+val.inicial.op <- sum(val.inicial.op$PRECIO_TEORICO_0*val.inicial.op$VAL_FAC)
+val.inicial.op <- (Portafolio.total %>% mutate(vec.inicial = ifelse(COD_ENT==Entidades[which.max(roracs)],
+                                                                   VAL_FAC, 
+                                                                   0)))$vec.inicial/val.inicial.op
+
+# Optimizacion por SA:
+VAL.FAC.SA <- optim_sa(fun = Port.Optim,
+                       start = val.inicial.op,
+                       trace = TRUE,
+                       lower = rep(0, sum(nrow(BONOS.TF.RESULTADOS)+
+                                            nrow(BONOS.TV.RESULTADOS)+
+                                            nrow(ACCIONES.RESULTADOS))),
+                       upper = rep(300, sum(nrow(BONOS.TF.RESULTADOS)+
+                                              nrow(BONOS.TV.RESULTADOS)+
+                                              nrow(ACCIONES.RESULTADOS))),
+                       control = list(nlimit = Int.Port))
+
+# Revision de Limites:
+Titulos.optim.r <- cbind(Portafolio.total[,1:8], 
+                         apply(as.matrix(Portafolio.total[,-(1:8)]),
+                               2,
+                               as.numeric)*VAL.FAC.SA$par*val.total.por)
+# Valores futuros:
+val.portafolio.fut.r <- colSums(Titulos.optim.r[,-(1:8)])
+
+# Por sector:
+Sector.tit.r <- Titulos.optim.r %>% filter(COD_SEC == 1)
+Sector.prop.r <- 1-sum(0.8<colSums(Sector.tit.r[,-(1:8)]))/cant.simu
+
+# Por emisor:
+Emisor.tit.r <- t(rowsum(as.matrix(Titulos.optim.r[,-(1:8)]), 
+                         Titulos.optim.r$COD_EMI))
+Emisor.prop.r <- 1-sum(0.1 < Emisor.tit.r)/(cant.simu*dim(Emisor.tit.r)[2])
+
+# Por administracion externa:
+Admin.tit.r <- Titulos.optim.r %>% filter(ADMIN != 1)
+Admin.prop.r <- 1-sum(0.1<colSums(Admin.tit.r[,-(1:8)]))/cant.simu
+
+# Por titulos emitidos en el extrangero:
+Extr.tit.r <- Titulos.optim.r %>% filter(!substring(COD_ISIN, 1, 2) %in% c("CR","00"))
+Extr.prop.r <- 1-sum(0.25<(colSums(Extr.tit.r[,-(1:8)])))/cant.simu
+
+# Por modalidad de inversion:
+Modal.tit.r <- t(rowsum(as.matrix(Titulos.optim.r[,-(1:8)]), 
+                        Titulos.optim.r$COD_MOD_INV))
+Modal.prop1.r <- 1-sum(0.1 < Modal.tit.r[,c("DI","P2","E1")])/(cant.simu*3)
+Modal.prop2.r <- 1-sum(0.25 < Modal.tit.r[,c("P1")])/cant.simu
+
+# Datos de revision:
+Datos.limites <- data.frame(Limite = c("Sector Publico",
+                                       "Emisor", 
+                                       "Administracion Externa",
+                                       "Titulos Emitidos en el Extrangero",
+                                       "Modalidad de inversion",
+                                       "Modalidad de inversion"),
+                            `Criterio de Limite` = c("No se debe obtener mas del 80%",
+                                                     "Maximo de 10% por emisor",
+                                                     "Maximo de 10% en administracion externa",
+                                                     "Maximo de 25% en titulos Extrangeros",
+                                                     "Maximo de 10% en DI, P2 y E1",
+                                                     "Maximo de 25% en P1"),
+                            Ajuste = c(Sector.prop.r,
+                                       Emisor.prop.r, 
+                                       Admin.prop.r,
+                                       Extr.prop.r,
+                                       Modal.prop1.r,
+                                       Modal.prop2.r))
+
+# Valor del portafolio actual optimo:
+val.act.opt <- sum(Portafolio.total$PRECIO_TEORICO_0*VAL.FAC.SA$par*val.total.por)
+
+# CVAR del portafolio futuro optimo:
+CVAR.opti <- (val.act.opt-mean(sort(colSums(apply(as.matrix(Portafolio.total[,-(1:8)]),
+                                                  2,
+                                                  as.numeric)*
+                                              VAL.FAC.SA$par*val.total.por), decreasing = TRUE)[(cant.simu*(1-significancia)):cant.simu]))
+
+# Rendimiento optimo:
+REND.opti <- (mean(colSums(apply(as.matrix(Portafolio.total[,-(1:8)]),
+                                 2,
+                                 as.numeric)*
+                             VAL.FAC.SA$par*val.total.por))-
+                val.act.opt)
+
+# RORAC del portafolio futuro optimo:
+RORAC.opti <- REND.opti/CVAR.opti
+
+# Actualizamos los valores:
+CVAR.opti <- CVAR.opti/val.act.opt
+REND.opti <- REND.opti/val.act.opt
+
+
+############################### Visualizacion ################################
+
+
+# se crean los datos finales:
+Resultados.rorac <- data.frame(Entidad = Entidades, Valor.Actual = valorhoy,
+                               Rendimiento = rendimientos, 
+                               Riesgo = cvars, RORAC = roracs) 
+
+# Agregamos la informacion general:
 Resultados.rorac <- rbind(Resultados.rorac, 
                           c("Benchmark",
                             val.portafolio.hoy, 
@@ -1979,12 +1967,12 @@ Resultados.rorac <- rbind(Resultados.rorac,
                             REND.opti,
                             CVAR.opti,
                             RORAC.opti)) %>% 
-  mutate(RORAC=100*round(as.numeric(RORAC),4), 
-         Rendimiento=100*round(as.numeric(Rendimiento),4))
-
-
-############################### Visualización ################################
-
+  mutate(RORAC=100*round(as.numeric(RORAC),5), 
+         Rendimiento=100*round(as.numeric(Rendimiento),5)) %>% 
+  mutate(Valor.Actual = as.numeric(Valor.Actual)/val.portafolio.hoy,
+         Rendimiento = as.numeric(Rendimiento),
+         Riesgo = as.numeric(Riesgo)) %>%
+  arrange(RORAC)
 
 # visualizamos los resultados:
 graf.rorac <- ggplot(Resultados.rorac %>% 
@@ -1993,15 +1981,15 @@ graf.rorac <- ggplot(Resultados.rorac %>%
                  y=RORAC,color=Entidad), size=3) +
   geom_text(data = Resultados.rorac %>%
               filter(Entidad %in% c("Benchmark")), 
-            aes(x = 0, y=RORAC,label = Entidad), color = "red",
-            nudge_x = 0.19, nudge_y = 0.9) +
+            aes(x = 0.19, y=RORAC,label = Entidad), color = "red",
+            nudge_x = 0.01, nudge_y = 0.9) +
   geom_text(data = Resultados.rorac %>%
               filter(Entidad %in% c("Óptimo")), 
             aes(x = 0, y=RORAC,label = Entidad), color = "steelblue",
             nudge_x = 0.01, nudge_y = 0.9) +
   xlim(0,0.2) +
   theme_bw() +
-  ylim(as.numeric(min(Resultados.rorac$RORAC))*(1-0.5),
+  ylim(as.numeric(min(Resultados.rorac$RORAC)*(1+0.5)),
        as.numeric(max(Resultados.rorac$RORAC))*(1+0.5)) +
   geom_hline(yintercept= 100*RORAC.Bench, 
              linetype="dashed", color = "red") +
@@ -2016,22 +2004,22 @@ graf.rorac
 # Visualizamos la Frontera Eficiente:
 graf.efi <- ggplot(Resultados.rorac %>% 
                      filter(!Entidad %in% c("Benchmark", "Óptimo")), 
-                   aes(x = CVaR, y = Rendimiento)) +
+                   aes(x = Riesgo, y = Rendimiento)) +
   geom_point(aes(color = Entidad), size=3) +
 theme(axis.text.x=element_blank(),
       axis.ticks.x=element_blank()) +
   ylab("Rendimiento (%)") +
   xlab("Riesgo") +
   geom_text(data = Resultados.rorac %>% filter(Entidad == "Benchmark"),
-            aes(x = CVaR, y=Rendimiento,label = Entidad),
-            color = "red", nudge_y = 6) +
+            aes(x = Riesgo, y=Rendimiento,label = Entidad),
+            color = "red", nudge_y = 11) +
   geom_point(data = Resultados.rorac %>% filter(Entidad == "Benchmark"),
-            aes(x = CVaR, y=Rendimiento)) +
+            aes(x = Riesgo, y=Rendimiento)) +
   geom_text(data = Resultados.rorac %>% filter(Entidad == "Óptimo"),
-            aes(x = CVaR, y=Rendimiento,label = Entidad),
-            color = "steelblue", nudge_y = 6) +
+            aes(x = Riesgo, y=Rendimiento,label = Entidad),
+            color = "steelblue", nudge_y = 11) +
   geom_point(data = Resultados.rorac %>% filter(Entidad == "Óptimo"),
-             aes(x = CVaR, y=Rendimiento))
+             aes(x = Riesgo, y=Rendimiento))
 graf.efi
 
 
